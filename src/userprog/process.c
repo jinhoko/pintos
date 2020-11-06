@@ -29,41 +29,139 @@ static bool load (const char *cmdline, void (**eip) (void), void **esp);
    FILENAME.  The new thread may be scheduled (and may even exit)
    before process_execute() returns.  Returns the new process's
    thread id, or TID_ERROR if the thread cannot be created. */
+/* === DEL START jihun p2q1 ===*/
+//tid_t
+//process_execute (const char *file_name)
+//{
+//  char *fn_copy;
+//  tid_t tid;
+//
+//  /* Make a copy of FILE_NAME.
+//     Otherwise there's a race between the caller and load(). */
+//  fn_copy = palloc_get_page (0);
+//  if (fn_copy == NULL)
+//    return TID_ERROR;
+//  strlcpy (fn_copy, file_name, PGSIZE);
+//
+//  /* Create a new thread to execute FILE_NAME. */
+//  tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
+//  if (tid == TID_ERROR)
+//    palloc_free_page (fn_copy);
+//  return tid;
+//}
+/* === DEL END jihun p2q1 ===*/
+
+/* === ADD START jihun p2q1 ===*/
+
 tid_t
-process_execute (const char *file_name) 
+process_execute (const char *cmdline)
 {
-  char *fn_copy;
+  char *cmdline_copy;
+  char *fn_name;
+  char *temp = cmdline;
   tid_t tid;
 
-  /* Make a copy of FILE_NAME.
+  /* Make a copy of cmdline.
      Otherwise there's a race between the caller and load(). */
-  fn_copy = palloc_get_page (0);
-  if (fn_copy == NULL)
+  cmdline_copy = palloc_get_page (0);
+  if (cmdline_copy == NULL)
     return TID_ERROR;
-  strlcpy (fn_copy, file_name, PGSIZE);
+  strlcpy (cmdline_copy, cmdline, PGSIZE);
 
-  /* Create a new thread to execute FILE_NAME. */
-  tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
+  // NOTE : Get the first parse of cmdline, which is name of function
+  fn_name = strtok_r(temp, " ", &temp);
+
+  /* Create a new thread to execute fn_name. */
+  tid = thread_create (fn_name, PRI_DEFAULT, start_process, cmdline_copy);
   if (tid == TID_ERROR)
-    palloc_free_page (fn_copy); 
+    palloc_free_page (cmdline_copy);
   return tid;
 }
+/* === ADD END jihun p2q1 ===*/
+
+/* === ADD START jihun p2q1 ===*/
+// NOTE : push tokens into the user stack
+void stack_tokens(int argc, char **parsed_arguments, void **esp)
+{
+  int i;
+  int argv_length;
+  int total_length = 0;
+  void* argv_address[argc];
+
+  // NOTE : push address of command line to stack
+  for(i = 0; i < argc; i++)
+  {
+    argv_length = strlen(parsed_arguments[argc - 1 - i]) + 1; // NOTE : +1 means including "\0"
+    total_length += argv_length;
+    *esp -= argv_length;
+    memcpy(*esp, parsed_arguments[argc - 1 - i], argv_length);  // NOTE : push reversely for ordering
+    argv_address[argc - 1 - i] = *esp;
+  }
+
+  // NOTE : push word-align and argv[argc]
+  for(i = 0; i < 7 - ( (total_length + 3) % 4 ); i++)
+  {
+    *esp -= 1;
+    *((uint8_t*) *esp) = 0;
+  }
+
+  // NOTE : push address of command line to stack
+  for(i = 0; i < argc; i++)
+  {
+    *esp -= 4;
+    *((char**) *esp) = argv_address[argc - 1 - i];  // NOTE : push reversely for ordering
+  }
+
+  // NOTE : push address of argv
+  *esp -= 4;
+  *((char**) *esp) = (*esp + 4);
+
+  // NOTE : push argc
+  *esp -= 4;
+  *((int*) *esp) = argc;
+
+  // NOTE : push return address
+  *esp -= 4;
+  *((int*) *esp) = 0;
+}
+/* === ADD END jihun p2q1 ===*/
 
 /* A thread function that loads a user process and starts it
    running. */
+
+/* === ADD START jihun p2q1 & jinho p2q2 ===*/
 static void
-start_process (void *file_name_)
+start_process (void *cmdline_)
 {
-  char *file_name = file_name_;
+  char *cmdline = cmdline_;
   struct intr_frame if_;
   bool success;
+
+  char* parsed_arguments[64];
+  char* token;
+  int token_num = 0;
+
+  // NOTE : Copy cmdline because strtok_r changes cmdline
+  char *cmdline_copy = palloc_get_page (0);
+  strlcpy (cmdline_copy, cmdline, PGSIZE);
+  char* temp = cmdline_copy;
+
+  // NOTE : Save parsed arguments and count number of arguments
+  while(token = strtok_r(temp, " ", &temp)) {
+    parsed_arguments[token_num] = token;
+    token_num++;
+  }
 
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
-  success = load (file_name, &if_.eip, &if_.esp);
+  success = load (parsed_arguments[0], &if_.eip, &if_.esp);
+
+  // NOTE : If load succeeded, stack tokens at user stack
+  if (success)
+    stack_tokens(token_num, parsed_arguments, &if_.esp);
 
 /* === DEL START jinho p2q2 ===*/
 //  /* If load failed, quit. */
@@ -75,7 +173,8 @@ start_process (void *file_name_)
 /* === ADD START jinho p2q2 ===*/
   /* If load failed, quit. */
   struct thread* cur = thread_current();
-  palloc_free_page (file_name);
+  palloc_free_page (cmdline);
+  palloc_free_page (cmdline_copy);
   if (!success){
     cur->init_status = false;
     cur->init_done = true;
@@ -87,6 +186,8 @@ start_process (void *file_name_)
   sema_up( &(cur->child_sema) );
 /* === ADD END jinho p2q2 ===*/
 
+  // hex_dump(if_.esp , if_.esp , PHYS_BASE - if_.esp , true);
+
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
      threads/intr-stubs.S).  Because intr_exit takes all of its
@@ -96,6 +197,7 @@ start_process (void *file_name_)
   asm volatile ("movl %0, %%esp; jmp intr_exit" : : "g" (&if_) : "memory");
   NOT_REACHED ();
 }
+/* === ADD END jihun p2q1 & jinho p2q2 ===*/
 
 /* Waits for thread TID to die and returns its exit status.  If
    it was terminated by the kernel (i.e. killed due to an
@@ -133,7 +235,6 @@ process_wait (tid_t child_tid)
   child->exit_status_returned = true;
   return child->exit_status;
   /* === ADD END jinho p2q2 ===*/
-
 }
 
 /* Free the current process's resources. */
