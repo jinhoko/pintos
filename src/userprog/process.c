@@ -51,8 +51,8 @@ static bool load (const char *cmdline, void (**eip) (void), void **esp);
 tid_t
 process_execute (const char *cmdline)
 {
-  char *cmdline_copy = NULL;
-  char *fn_name = NULL;
+  char *cmdline_copy;
+  char *fn_name;
   char *temp = cmdline;
   tid_t tid;
 
@@ -75,6 +75,7 @@ process_execute (const char *cmdline)
 /* === ADD END jihun p2q1 ===*/
 
 /* === ADD START jihun p2q1 ===*/
+// NOTE : push tokens into the user stack
 void stack_tokens(int argc, char **parsed_arguments, void **esp)
 {
   int i;
@@ -85,25 +86,25 @@ void stack_tokens(int argc, char **parsed_arguments, void **esp)
   // NOTE : push address of command line to stack
   for(i = 0; i < argc; i++)
   {
-    argv_length = strlen(parsed_arguments[i]) + 1; // NOTE : +1 means including "\0"
+    argv_length = strlen(parsed_arguments[argc - 1 - i]) + 1; // NOTE : +1 means including "\0"
     total_length += argv_length;
     *esp -= argv_length;
-    memcpy(*esp, parsed_arguments[i], argv_length);
-    argv_address[i] = *esp;
+    memcpy(*esp, parsed_arguments[argc - 1 - i], argv_length);  // NOTE : push reversely for ordering
+    argv_address[argc - 1 - i] = *esp;
   }
 
   // NOTE : push word-align and argv[argc]
   for(i = 0; i < 7 - ( (total_length + 3) % 4 ); i++)
   {
     *esp -= 1;
-    *((uint8_t * ) * esp) = 0;
+    *((uint8_t*) *esp) = 0;
   }
 
   // NOTE : push address of command line to stack
-  for(i = 0; i < argc; i++)  // NOTE : stack backward for argc order
+  for(i = 0; i < argc; i++)
   {
     *esp -= 4;
-    *((char**) *esp) = argv_address[argc - 1 - i];
+    *((char**) *esp) = argv_address[argc - 1 - i];  // NOTE : push reversely for ordering
   }
 
   // NOTE : push address of argv
@@ -161,12 +162,12 @@ start_process (void *cmdline_)
   struct intr_frame if_;
   bool success;
 
-  char** parsed_arguments = { NULL , };
+  char* parsed_arguments[64];
   char* token;
   int token_num = 0;
 
   // NOTE : Copy cmdline because strtok_r changes cmdline
-  char *cmdline_copy = NULL;
+  char *cmdline_copy = palloc_get_page (0);
   strlcpy (cmdline_copy, cmdline, PGSIZE);
   char* temp = cmdline_copy;
 
@@ -189,10 +190,11 @@ start_process (void *cmdline_)
 
   /* If load failed, quit. */
   palloc_free_page (cmdline);
+  palloc_free_page (cmdline_copy);
   if (!success)
     thread_exit ();
 
-  //hex_dump(if_.esp , if_.esp , PHYS_BASE - if_.esp , true);
+  // hex_dump(if_.esp , if_.esp , PHYS_BASE - if_.esp , true);
 
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
@@ -217,6 +219,7 @@ start_process (void *cmdline_)
 int
 process_wait (tid_t child_tid UNUSED)
 {
+  while(1);
   return -1;
 }
 
