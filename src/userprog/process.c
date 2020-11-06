@@ -75,6 +75,14 @@ process_execute (const char *cmdline)
   tid = thread_create (fn_name, PRI_DEFAULT, start_process, cmdline_copy);
   if (tid == TID_ERROR)
     palloc_free_page (cmdline_copy);
+
+  // ADD START jinho p2q2
+  struct thread* cur = thread_current();
+  struct thread* child = thread_ptr(tid);
+  child->ptid = cur->tid;
+  list_push_back( &(thread_current()->children), &(child->child_elem) );
+  // ADD END jinho p2q2
+
   return tid;
 }
 /* === ADD END jihun p2q1 ===*/
@@ -178,15 +186,19 @@ start_process (void *cmdline_)
   if (!success){
     cur->init_status = false;
     cur->init_done = true;
-    sema_up( &(cur->child_sema) );
+    sema_up( &(cur->child_exec_sema) );
     thread_exit ();
   }
   cur->init_status = true;
   cur->init_done = true;
-  sema_up( &(cur->child_sema) );
+  sema_up( &(cur->child_exec_sema) );
+
+  // NOTE : hex dump for debugging
+  //hex_dump(if_.esp , if_.esp , PHYS_BASE - if_.esp , true);
+
 /* === ADD END jinho p2q2 ===*/
 
-  // hex_dump(if_.esp , if_.esp , PHYS_BASE - if_.esp , true);
+
 
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
@@ -222,14 +234,14 @@ process_wait (tid_t child_tid)
 {
   struct thread* cur = thread_current();
   struct thread* child = getChildPointer(cur, child_tid);
-  ASSERT( child != NULL);
+  ASSERT( child != NULL );
 
-  sema_down( &(child->child_sema) );
-  ASSERT( child->exit_done == true );
-  ASSERT( child->exit_status != NULL );
+  sema_down( &(child->child_exit_sema) );
+  //ASSERT( child->exit_done == true ); TODO
+  //ASSERT( child->exit_status >= 0 ); TODO
 
   list_remove( &(child->child_elem) );
-  ASSERT( child->status == THREAD_DYING );
+  //ASSERT( child->status == THREAD_DYING ); TODO
   palloc_free_page(child);
 
   child->exit_status_returned = true;

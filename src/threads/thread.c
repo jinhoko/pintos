@@ -325,6 +325,26 @@ thread_tid (void)
   return thread_current ()->tid;
 }
 
+/* === ADD START jinho p2q2 ===*/
+struct thread*
+thread_ptr(int tid) {
+
+  struct thread* out = NULL;
+  struct list_elem *e;
+  struct thread* thr;
+  for (e = list_begin (&all_list); e != list_end (&all_list);
+       e = list_next (e))
+  {
+    thr = list_entry (e, struct thread, allelem);
+    if( thr->tid == tid ){
+      out = thr; break;
+    }
+  }
+  return out;
+}
+/* === ADD END jinho p2q2 ===*/
+
+
 /* Deschedules the current thread and destroys it.  Never
    returns to the caller. */
 void
@@ -343,8 +363,11 @@ thread_exit (void)
   intr_disable ();
   /* === ADD START jinho p2q2 ===*/
   struct thread* cur = thread_current();
+  if( cur->exit_status == -1 ) {
+    cur->exit_status = 0;
+  }
   cur->exit_done = true;
-  sema_up( &(cur->child_sema) );
+  sema_up( &(cur->child_exit_sema) );
   /* === ADD END jinho p2q2 ===*/
   list_remove (&thread_current()->allelem);
   thread_current ()->status = THREAD_DYING;
@@ -849,16 +872,16 @@ init_thread (struct thread *t, const char *name, int priority)
   /* === ADD END jihun ===*/
 
   /* === ADD START jinho p2q2 ===*/
-  t->ptid = thread_current()->tid;
-  list_push_back( &(thread_current()->children), &(t->child_elem) );
+  t->ptid = NULL;
 
   list_init( &(t->children) );
 
-  sema_init( &(t->child_sema), 0);
+  sema_init( &(t->child_exec_sema), 0);
+  sema_init( &(t->child_exit_sema), 0);
   t->init_done = false;
   t->init_status = NULL;
   t->exit_done = false;
-  t->exit_status = NULL;
+  t->exit_status = -1;
   t->exit_status_returned = false;
   /* === ADD END jinho p2q2 ===*/
 

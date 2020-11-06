@@ -135,7 +135,9 @@ struct thread
 
     struct list children;
     struct list_elem child_elem;
-    struct semaphore child_sema;           /* Sema used when syscall handles exec() or wait() in a synchronized manner */
+    struct semaphore child_exec_sema;           /* Sema used when syscall handles exec() in a synchronized manner */
+    struct semaphore child_exit_sema;           /* Sema used when syscall handles exit() in a synchronized manner */
+
 
     bool init_done;
     bool init_status;                 /* true if success, else false */
@@ -178,6 +180,9 @@ void thread_unblock (struct thread *);
 
 struct thread *thread_current (void);
 tid_t thread_tid (void);
+/* === ADD START jinho p2q2 ===*/
+struct thread* thread_ptr(int);
+/* === ADD END jinho p2q2 ===*/
 const char *thread_name (void);
 
 void thread_exit (void) NO_RETURN;

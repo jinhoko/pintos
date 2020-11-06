@@ -67,12 +67,15 @@ syscall_handler (struct intr_frame *f)
 {
   const uint32_t* args[4];
   args[0] = f->esp;
-  args[1] = (f->esp+1);
-  args[2] = (f->esp+2);
-  args[3] = (f->esp+3);
+  args[1] = (f->esp+4);
+  args[2] = (f->esp+8);
+  args[3] = (f->esp+12);
 
   handleInvalidUserPointer(args[0]);
   int syscall_number = *(args[0]);
+
+  // NOTE : debug
+  //printf("[DEBUG] SYSCALL %d %d %d %d \n", *(args[0]), *(args[1]), *(args[2]), *(args[3]));
 
   switch (syscall_number) {
     case SYS_HALT:
@@ -80,11 +83,11 @@ syscall_handler (struct intr_frame *f)
       break;
     case SYS_EXIT:
       handleInvalidUserPointer(args[1]);
-      exit(args[1]);
+      exit(*(args[1]));
       break;
     case SYS_EXEC:
       handleInvalidUserPointer(args[1]);
-      f->eax = exec((char *) args[1]);
+      f->eax = exec((char *) *(args[1]));
       break;
     case SYS_WAIT:
       handleInvalidUserPointer(args[1]);
@@ -161,7 +164,7 @@ static pid_t exec(const char *cmd_line) {
   struct thread* child = getChildPointer(cur, child_tid);
   ASSERT( child != NULL );
 
-  sema_down( &(child->child_sema) );
+  sema_down( &(child->child_exec_sema) );
   ASSERT( child->init_done == true );
 
   if( child->init_status == false ){
