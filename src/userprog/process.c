@@ -78,17 +78,17 @@ process_execute (const char *cmdline)
 void stack_tokens(int argc, char **parsed_arguments, void **esp)
 {
   int i;
-  int length;
+  int argv_length;
   int total_length = 0;
   void* argv_address[argc];
 
   // NOTE : push address of command line to stack
   for(i = 0; i < argc; i++)
   {
-    length = strlen(parsed_arguments[i]) + 1; // NOTE : +1 means including "\0"
-    total_length += length;
-    *esp -= length;
-    memcpy(*esp, parsed_arguments[i], length);
+    argv_length = strlen(parsed_arguments[i]) + 1; // NOTE : +1 means including "\0"
+    total_length += argv_length;
+    *esp -= argv_length;
+    memcpy(*esp, parsed_arguments[i], argv_length);
     argv_address[i] = *esp;
   }
 
