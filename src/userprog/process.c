@@ -26,52 +26,52 @@ static bool load (const char *cmdline, void (**eip) (void), void **esp);
    before process_execute() returns.  Returns the new process's
    thread id, or TID_ERROR if the thread cannot be created. */
 /* === DEL START jihun p2q1 ===*/
-tid_t
-process_execute (const char *file_name)
-{
-  char *fn_copy;
-  tid_t tid;
-
-  /* Make a copy of FILE_NAME.
-     Otherwise there's a race between the caller and load(). */
-  fn_copy = palloc_get_page (0);
-  if (fn_copy == NULL)
-    return TID_ERROR;
-  strlcpy (fn_copy, file_name, PGSIZE);
-
-  /* Create a new thread to execute FILE_NAME. */
-  tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
-  if (tid == TID_ERROR)
-    palloc_free_page (fn_copy);
-  return tid;
-}
+//tid_t
+//process_execute (const char *file_name)
+//{
+//  char *fn_copy;
+//  tid_t tid;
+//
+//  /* Make a copy of FILE_NAME.
+//     Otherwise there's a race between the caller and load(). */
+//  fn_copy = palloc_get_page (0);
+//  if (fn_copy == NULL)
+//    return TID_ERROR;
+//  strlcpy (fn_copy, file_name, PGSIZE);
+//
+//  /* Create a new thread to execute FILE_NAME. */
+//  tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
+//  if (tid == TID_ERROR)
+//    palloc_free_page (fn_copy);
+//  return tid;
+//}
 /* === DEL END jihun p2q1 ===*/
 
 /* === ADD START jihun p2q1 ===*/
-//tid_t
-//process_execute (const char *cmdline)
-//{
-//  char *cmdline_copy = NULL;
-//  char *fn_name = NULL;
-//  char *temp = cmdline;
-//  tid_t tid;
-//
-//  /* Make a copy of cmdline.
-//     Otherwise there's a race between the caller and load(). */
-//  cmdline_copy = palloc_get_page (0);
-//  if (cmdline_copy == NULL)
-//    return TID_ERROR;
-//  strlcpy (cmdline_copy, cmdline, PGSIZE);
-//
-//  // NOTE : Get the first parse of cmdline, which is name of function
-//  fn_name = strtok_r(temp, " ", &temp);
-//
-//  /* Create a new thread to execute fn_name. */
-//  tid = thread_create (fn_name, PRI_DEFAULT, start_process, cmdline_copy);
-//  if (tid == TID_ERROR)
-//    palloc_free_page (cmdline_copy);
-//  return tid;
-//}
+tid_t
+process_execute (const char *cmdline)
+{
+  char *cmdline_copy = NULL;
+  char *fn_name = NULL;
+  char *temp = cmdline;
+  tid_t tid;
+
+  /* Make a copy of cmdline.
+     Otherwise there's a race between the caller and load(). */
+  cmdline_copy = palloc_get_page (0);
+  if (cmdline_copy == NULL)
+    return TID_ERROR;
+  strlcpy (cmdline_copy, cmdline, PGSIZE);
+
+  // NOTE : Get the first parse of cmdline, which is name of function
+  fn_name = strtok_r(temp, " ", &temp);
+
+  /* Create a new thread to execute fn_name. */
+  tid = thread_create (fn_name, PRI_DEFAULT, start_process, cmdline_copy);
+  if (tid == TID_ERROR)
+    palloc_free_page (cmdline_copy);
+  return tid;
+}
 /* === ADD END jihun p2q1 ===*/
 
 /* === ADD START jihun p2q1 ===*/
@@ -123,76 +123,24 @@ void stack_tokens(int argc, char **parsed_arguments, void **esp)
 /* A thread function that loads a user process and starts it
    running. */
 /* === DEL START jihun p2q1 ===*/
-static void
-start_process (void *file_name_)
-{
-  char *file_name = file_name_;
-  struct intr_frame if_;
-  bool success;
-
-  /* Initialize interrupt frame and load executable. */
-  memset (&if_, 0, sizeof if_);
-  if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
-  if_.cs = SEL_UCSEG;
-  if_.eflags = FLAG_IF | FLAG_MBS;
-  success = load (file_name, &if_.eip, &if_.esp);
-
-  /* If load failed, quit. */
-  palloc_free_page (file_name);
-  if (!success)
-    thread_exit ();
-
-  /* Start the user process by simulating a return from an
-     interrupt, implemented by intr_exit (in
-     threads/intr-stubs.S).  Because intr_exit takes all of its
-     arguments on the stack in the form of a `struct intr_frame',
-     we just point the stack pointer (%esp) to our stack frame
-     and jump to it. */
-  asm volatile ("movl %0, %%esp; jmp intr_exit" : : "g" (&if_) : "memory");
-  NOT_REACHED ();
-}
-/* === DEL END jihun p2q1 ===*/
-
-/* === ADD START jihun p2q1 ===*/
 //static void
-//start_process (void *cmdline_)
+//start_process (void *file_name_)
 //{
-//  char *cmdline = cmdline_;
+//  char *file_name = file_name_;
 //  struct intr_frame if_;
 //  bool success;
-//
-//  char** parsed_arguments = { NULL , };
-//  char* token;
-//  int token_num = 0;
-//
-//  // NOTE : Copy cmdline because strtok_r changes cmdline
-//  char *cmdline_copy = NULL;
-//  strlcpy (cmdline_copy, cmdline, PGSIZE);
-//  char* temp = cmdline_copy;
-//
-//  // NOTE : Save parsed arguments and count number of arguments
-//  while(token = strtok_r(temp, " ", &temp)) {
-//    parsed_arguments[token_num] = token;
-//    token_num++;
-//  }
 //
 //  /* Initialize interrupt frame and load executable. */
 //  memset (&if_, 0, sizeof if_);
 //  if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
 //  if_.cs = SEL_UCSEG;
 //  if_.eflags = FLAG_IF | FLAG_MBS;
-//  success = load (parsed_arguments[0], &if_.eip, &if_.esp);
-//
-//  // NOTE : If load succeeded, stack tokens at user stack
-//  if (success)
-//    stack_tokens(token_num, parsed_arguments, &if_.esp);
+//  success = load (file_name, &if_.eip, &if_.esp);
 //
 //  /* If load failed, quit. */
-//  palloc_free_page (cmdline);
+//  palloc_free_page (file_name);
 //  if (!success)
 //    thread_exit ();
-//
-//  //hex_dump(if_.esp , if_.esp , PHYS_BASE - if_.esp , true);
 //
 //  /* Start the user process by simulating a return from an
 //     interrupt, implemented by intr_exit (in
@@ -203,6 +151,58 @@ start_process (void *file_name_)
 //  asm volatile ("movl %0, %%esp; jmp intr_exit" : : "g" (&if_) : "memory");
 //  NOT_REACHED ();
 //}
+/* === DEL END jihun p2q1 ===*/
+
+/* === ADD START jihun p2q1 ===*/
+static void
+start_process (void *cmdline_)
+{
+  char *cmdline = cmdline_;
+  struct intr_frame if_;
+  bool success;
+
+  char** parsed_arguments = { NULL , };
+  char* token;
+  int token_num = 0;
+
+  // NOTE : Copy cmdline because strtok_r changes cmdline
+  char *cmdline_copy = NULL;
+  strlcpy (cmdline_copy, cmdline, PGSIZE);
+  char* temp = cmdline_copy;
+
+  // NOTE : Save parsed arguments and count number of arguments
+  while(token = strtok_r(temp, " ", &temp)) {
+    parsed_arguments[token_num] = token;
+    token_num++;
+  }
+
+  /* Initialize interrupt frame and load executable. */
+  memset (&if_, 0, sizeof if_);
+  if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
+  if_.cs = SEL_UCSEG;
+  if_.eflags = FLAG_IF | FLAG_MBS;
+  success = load (parsed_arguments[0], &if_.eip, &if_.esp);
+
+  // NOTE : If load succeeded, stack tokens at user stack
+  if (success)
+    stack_tokens(token_num, parsed_arguments, &if_.esp);
+
+  /* If load failed, quit. */
+  palloc_free_page (cmdline);
+  if (!success)
+    thread_exit ();
+
+  //hex_dump(if_.esp , if_.esp , PHYS_BASE - if_.esp , true);
+
+  /* Start the user process by simulating a return from an
+     interrupt, implemented by intr_exit (in
+     threads/intr-stubs.S).  Because intr_exit takes all of its
+     arguments on the stack in the form of a `struct intr_frame',
+     we just point the stack pointer (%esp) to our stack frame
+     and jump to it. */
+  asm volatile ("movl %0, %%esp; jmp intr_exit" : : "g" (&if_) : "memory");
+  NOT_REACHED ();
+}
 /* === ADD END jihun p2q1 ===*/
 
 /* Waits for thread TID to die and returns its exit status.  If
@@ -585,7 +585,7 @@ setup_stack (void **esp)
 static bool
 install_page (void *upage, void *kpage, bool writable)
 {
-  struct thread *t = thread_current ();ls
+  struct thread *t = thread_current ();
 
   /* Verify that there's not already a page at that virtual
      address, then map our page there. */
