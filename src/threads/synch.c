@@ -144,7 +144,7 @@ sema_up (struct semaphore *sema)
   if( threadToUnblock != NULL ) {
     bool priorityPreemptionRequired = threadToUnblock->priority > thread_current()->priority;
     if (priorityPreemptionRequired) {
-      thread_yield();
+      if( !intr_context() ) {  thread_yield(); }
     }
   }
   /* === ADD END jinho q2 ===*/

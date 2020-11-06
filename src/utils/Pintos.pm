@@ -359,7 +359,11 @@ sub cyl_sectors {
 # Makes sure that the loader is a reasonable size.
 sub read_loader {
     my ($name) = @_;
-    $name = find_file ($ENV{"HOME"} . "/pintos-deploy-jhshin/pintos/src/userprog/build/loader.bin") if !defined $name;
+<<<<<<< HEAD
+    $name = find_file ($ENV{"HOME"} . "/pintos/src/userprog/build/loader.bin") if !defined $name;
+=======
+    $name = find_file ($ENV{"HOME"} . "/pintos/src/userprog/build/loader.bin") if !defined $name;
+>>>>>>> master
     die "Cannot find loader\n" if !defined $name;
 
     my ($handle);

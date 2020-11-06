@@ -238,7 +238,7 @@ thread_create (const char *name, int priority,
   if( thread_current() != idle_thread) {
     bool createdThreadIsPrioritized = t->priority > thread_current()->priority;
     if( createdThreadIsPrioritized ){
-      thread_yield();
+      if( !intr_context() ) { thread_yield(); }
     }
   }
 
@@ -527,7 +527,7 @@ void thread_set_priority_inner (struct thread* t, int new_priority,
     bool modifiedThreadIsNotPrioritized = highestPriority > cur->priority;
 
     if (modifiedThreadIsNotPrioritized) {
-      thread_yield();
+      if( !intr_context() ) { thread_yield(); }
     }
   }
 }
