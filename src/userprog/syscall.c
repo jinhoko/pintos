@@ -22,19 +22,19 @@ static void syscall_handler (struct intr_frame *);
 // NOTE : We write the function headers in the same file since
 //        the functions MUST be accessed only from this file.
 
-static void halt(void);
-static void exit(int);
-static pid_t exec(const char *);
-static int wait(pid_t);
-static bool create(const char *, unsigned);
-static bool remove(const char *);
-static int open(const char *);
-static int filesize(int);
-static int read(int, void *, unsigned);
-static int write(int, const void *, unsigned);
-static void seek(int, unsigned);
-static unsigned tell(int);
-static void close(int);
+void halt(void);
+void exit(int);
+pid_t exec(const char *);
+int wait(pid_t);
+bool create(const char *, unsigned);
+bool remove(const char *);
+int open(const char *);
+int filesize(int);
+int read(int, void *, unsigned);
+int write(int, const void *, unsigned);
+void seek(int, unsigned);
+unsigned tell(int);
+void close(int);
 
 // NOTE : helper functions (locally used)
 static bool isValidPointer(const void *);
@@ -152,20 +152,21 @@ syscall_handler (struct intr_frame *f)
 /* === ADD START jinho p2q2 ===*/
 
 // NOTE : Kernel function implementation.
-static void exit(int status) {
+void exit(int status) {
   struct thread* cur = thread_current();
   printf ("%s: exit(%d)\n", cur->name, status);
   cur->exit_status = status;
   thread_exit ();
 }
 
-static void halt(void) {
+void halt(void) {
   shutdown_power_off();
 }
 
-static pid_t exec(const char *cmd_line) {
+pid_t exec(const char *cmd_line) {
   tid_t child_tid;
   struct thread* cur = thread_current();
+
   child_tid = process_execute(cmd_line);
   struct thread* child = getChildPointer(cur, child_tid);
   ASSERT( child != NULL );
@@ -181,7 +182,7 @@ static pid_t exec(const char *cmd_line) {
   return (pid_t) child_tid;
 }
 
-static int wait(pid_t pid) {
+int wait(pid_t pid) {
   tid_t child_tid = (tid_t) pid;
   struct thread* cur = thread_current();
   struct thread* child = getChildPointer(cur, child_tid);
@@ -194,7 +195,7 @@ static int wait(pid_t pid) {
   return process_wait(pid);
 }
 
-static bool create(const char *file_name, unsigned size){
+bool create(const char *file_name, unsigned size){
   bool status;
   if( file_name == NULL ) { return -1; }
   lock_acquire(&fs_lock);
@@ -203,7 +204,7 @@ static bool create(const char *file_name, unsigned size){
   return status;
 }
 
-static bool remove(const char *file_name){
+bool remove(const char *file_name){
   bool status;
   lock_acquire(&fs_lock);
   status = filesys_remove(file_name);
@@ -211,7 +212,7 @@ static bool remove(const char *file_name){
   return status;
 }
 
-static int open(const char *file_name){
+int open(const char *file_name){
   int result = -1;
   if( file_name == NULL ) { return -1; }
   struct thread* cur = thread_current();
@@ -227,7 +228,7 @@ static int open(const char *file_name){
   return result;
 }
 
-static int filesize(int fd){
+int filesize(int fd){
   int result = -1;
   lock_acquire(&fs_lock);
   struct file* f = getFilePointer(fd);
@@ -238,7 +239,7 @@ static int filesize(int fd){
   return result;
 }
 
-static int read(int fd, void *buffer, unsigned size){
+int read(int fd, void *buffer, unsigned size){
   int result = -1;
   lock_acquire(&fs_lock);
   // case) accessing stdin
@@ -260,7 +261,7 @@ static int read(int fd, void *buffer, unsigned size){
   return result;
 }
 
-static int write(int fd, const void *buffer, unsigned size){
+int write(int fd, const void *buffer, unsigned size){
   int result = -1;
   lock_acquire(&fs_lock);
   // case) accessing stdout
@@ -268,18 +269,18 @@ static int write(int fd, const void *buffer, unsigned size){
     putbuf(buffer, size);
     result = size;
   }
-  // case) accessing file read
+  // case) accessing file write
   else {
     struct file* f = getFilePointer(fd);
     if( f != NULL ) {
-      result = file_read(f, buffer, size);
+      result = file_write(f, buffer, size);
     }
   }
   lock_release(&fs_lock);
   return result;
 }
 
-static void seek(int fd, unsigned position){
+void seek(int fd, unsigned position){
   lock_acquire(&fs_lock);
   struct file* f = getFilePointer(fd);
   if( f != NULL ) {
@@ -300,7 +301,7 @@ unsigned tell(int fd){
   return result;
 }
 
-static void close(int fd){
+void close(int fd){
   lock_acquire(&fs_lock);
   struct thread* cur = thread_current();
   struct file* f = getFilePointer(fd);
