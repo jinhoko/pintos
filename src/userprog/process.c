@@ -21,7 +21,6 @@
 #include "userprog/syscall.h"
 /* === ADD END jinho p2q2 ===*/
 
-
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
 
@@ -265,7 +264,6 @@ process_exit (void)
   }
   /* === ADD END jinho p2q2 ===*/
 
-
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
   pd = cur->pagedir;
@@ -282,6 +280,11 @@ process_exit (void)
     pagedir_activate (NULL);
     pagedir_destroy (pd);
   }
+
+  /* === ADD START jihun p2q3 ===*/
+  // NOTE : allow modification of current file TODO
+  file_close(cur->current_file);
+  /* === ADD END jihun p2q3 ===*/
 }
 
 /* Sets up the CPU for running user code in the current
@@ -369,6 +372,11 @@ static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
                           uint32_t read_bytes, uint32_t zero_bytes,
                           bool writable);
 
+/* === ADD START jihun p2q3 ===*/
+// NOTE : from syscall.h, for preventing file modification while opened TODO
+extern struct lock fs_lock;
+/* === ADD END jihun p2q3 ===*/
+
 /* Loads an ELF executable from FILE_NAME into the current thread.
    Stores the executable's entry point into *EIP
    and its initial stack pointer into *ESP.
@@ -383,6 +391,11 @@ load (const char *file_name, void (**eip) (void), void **esp)
   bool success = false;
   int i;
 
+  /* === ADD START jihun p2q3 ===*/
+  // NOTE : must be atomic TODO
+  lock_acquire(&fs_lock);
+  /* === ADD END jihun p2q3 ===*/
+
   /* Allocate and activate page directory. */
   t->pagedir = pagedir_create ();
   if (t->pagedir == NULL)
@@ -393,9 +406,19 @@ load (const char *file_name, void (**eip) (void), void **esp)
   file = filesys_open (file_name);
   if (file == NULL)
   {
+    /* === ADD START jihun p2q3 ===*/
+    lock_release(&fs_lock);
+    /* === ADD END jihun p2q3 ===*/
     printf ("load: %s: open failed\n", file_name);
     goto done;
   }
+
+  /* === ADD START jihun p2q3 ===*/
+  // NOTE : check current file and deny modification TODO
+  t->current_file = file;
+  file_deny_write(file);
+  lock_release(&fs_lock);
+  /* === ADD END jihun p2q3 ===*/
 
   /* Read and verify executable header. */
   if (file_read (file, &ehdr, sizeof ehdr) != sizeof ehdr
@@ -480,7 +503,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
 
   done:
   /* We arrive here whether the load is successful or not. */
-  file_close (file);
+  //file_close (file); TODO
   return success;
 }
 

@@ -58,10 +58,9 @@ syscall_init (void)
 //{
 //  printf ("system call!\n");
 //  thread_exit ();
-    /* === DEL END jinho p2q2 ===*/
+/* === DEL END jinho p2q2 ===*/
 
-
-    /* === ADD START jinho p2q2 ===*/
+/* === ADD START jinho p2q2 ===*/
 static void
 syscall_handler (struct intr_frame *f)
 {
@@ -163,7 +162,7 @@ void halt(void) {
   shutdown_power_off();
 }
 
-pid_t exec(const char *cmd_line) {
+pid_t exec(const char *cmd_line) { //TODO
   tid_t child_tid;
   struct thread* cur = thread_current();
 

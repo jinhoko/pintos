@@ -151,6 +151,9 @@ struct thread
     int fd_table_pointer;             /* where the last fd is stored ; initialized to 2 */
     /* === ADD END jinho p2q2 ===*/
 
+    /* === ADD START jihun p2q3 ===*/
+    struct file *current_file;
+    /* === ADD END jihun p2q3 ===*/
 
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
