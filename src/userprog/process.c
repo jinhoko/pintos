@@ -55,8 +55,9 @@ tid_t
 process_execute (const char *cmdline)
 {
   char *cmdline_copy;
+  char *cmdline_copy2;
   char *fn_name;
-  char *temp = cmdline;
+  char *temp;
   tid_t tid;
 
   /* Make a copy of cmdline.
@@ -64,15 +65,21 @@ process_execute (const char *cmdline)
   cmdline_copy = palloc_get_page (0);
   if (cmdline_copy == NULL)
     return TID_ERROR;
+  cmdline_copy2 = palloc_get_page (0);
+  if (cmdline_copy2 == NULL)
+    return TID_ERROR;
   strlcpy (cmdline_copy, cmdline, PGSIZE);
+  strlcpy (cmdline_copy2, cmdline, PGSIZE);
 
   // NOTE : Get the first parse of cmdline, which is name of function
-  fn_name = strtok_r(temp, " ", &temp);
+  fn_name = strtok_r(cmdline_copy2, " ", &temp);
 
   /* Create a new thread to execute fn_name. */
   tid = thread_create (fn_name, PRI_DEFAULT, start_process, cmdline_copy);
-  if (tid == TID_ERROR)
-    palloc_free_page (cmdline_copy);
+  if (tid == TID_ERROR) {
+    palloc_free_page(cmdline_copy);
+  }
+  palloc_free_page(cmdline_copy2);
 
   // ADD START jinho p2q2
   struct thread* cur = thread_current();
@@ -194,6 +201,7 @@ start_process (void *cmdline_)
   // NOTE : hex dump for debugging
   //hex_dump(if_.esp , if_.esp , PHYS_BASE - if_.esp , true);
 
+
 /* === ADD END jinho p2q2 ===*/
 
 
@@ -282,7 +290,7 @@ process_exit (void)
   }
 
   /* === ADD START jihun p2q3 ===*/
-  // NOTE : allow modification of current file TODO
+  // NOTE : allow modification of current file
   file_close(cur->current_file);
   /* === ADD END jihun p2q3 ===*/
 }
@@ -373,7 +381,7 @@ static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
                           bool writable);
 
 /* === ADD START jihun p2q3 ===*/
-// NOTE : from syscall.h, for preventing file modification while opened TODO
+// NOTE : from syscall.h, for preventing file modification while opened
 extern struct lock fs_lock;
 /* === ADD END jihun p2q3 ===*/
 
@@ -392,7 +400,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
   int i;
 
   /* === ADD START jihun p2q3 ===*/
-  // NOTE : must be atomic TODO
+  // NOTE : must be atomic
   lock_acquire(&fs_lock);
   /* === ADD END jihun p2q3 ===*/
 
@@ -414,7 +422,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
   }
 
   /* === ADD START jihun p2q3 ===*/
-  // NOTE : check current file and deny modification TODO
+  // NOTE : check current file and deny modification
   t->current_file = file;
   file_deny_write(file);
   lock_release(&fs_lock);
@@ -503,7 +511,9 @@ load (const char *file_name, void (**eip) (void), void **esp)
 
   done:
   /* We arrive here whether the load is successful or not. */
-  //file_close (file); TODO
+  /* === DEL START jihun p2q3 ===*/
+  //file_close (file);
+  /* === DEL END jihun p2q3 ===*/
   return success;
 }
 

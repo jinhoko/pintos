@@ -162,7 +162,7 @@ void halt(void) {
   shutdown_power_off();
 }
 
-pid_t exec(const char *cmd_line) { //TODO
+pid_t exec(const char *cmd_line) {
   tid_t child_tid;
   struct thread* cur = thread_current();
 

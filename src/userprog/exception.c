@@ -152,7 +152,7 @@ page_fault (struct intr_frame *f)
   user = (f->error_code & PF_U) != 0;
 
   /* === ADD START jinho p2q2 ===*/
-  // NOTE : exit on page fault
+  // NOTE : exit on page faults
   exit(-1);
   /* === ADD END jinho p2q2 ===*/
 
