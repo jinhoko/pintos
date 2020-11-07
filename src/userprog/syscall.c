@@ -38,7 +38,7 @@ static void close(int);
 
 // NOTE : helper functions (locally used)
 static bool isValidPointer(const void *);
-static void handleInvalidUserPointer(const void *);
+static void handleInvalidUserPointer(const void *, unsigned);
 static struct file* getFilePointer(int);
 
 /* === ADD END jinho p2q2 ===*/
@@ -71,7 +71,7 @@ syscall_handler (struct intr_frame *f)
   args[2] = (f->esp+8);
   args[3] = (f->esp+12);
 
-  handleInvalidUserPointer(args[0]);
+  handleInvalidUserPointer(args[0], 4);
   int syscall_number = *(args[0]);
 
   // NOTE : debug
@@ -80,59 +80,65 @@ syscall_handler (struct intr_frame *f)
   switch (syscall_number) {
     case SYS_HALT:
       halt();
+      NOT_REACHED();
       break;
     case SYS_EXIT:
-      handleInvalidUserPointer(args[1]);
+      handleInvalidUserPointer(args[1], 4);
       exit(*(args[1]));
       break;
     case SYS_EXEC:
-      handleInvalidUserPointer(args[1]);
+      handleInvalidUserPointer(args[1], 4);
+      handleInvalidUserPointer(*(args[1]), sizeof(char *) );
       f->eax = exec((char *) *(args[1]));
       break;
     case SYS_WAIT:
-      handleInvalidUserPointer(args[1]);
+      handleInvalidUserPointer(args[1], 4);
       f->eax = wait(*(args[1]));
       break;
     case SYS_CREATE:
-      handleInvalidUserPointer(args[1]);
-      handleInvalidUserPointer(args[2]);
+      handleInvalidUserPointer(args[1], 4);
+      handleInvalidUserPointer(args[2], 4);
+      handleInvalidUserPointer(*(args[1]), sizeof(char *) );
       f->eax = create((char *) *(args[1]), *(args[2]));
       break;
     case SYS_REMOVE:
-      handleInvalidUserPointer(args[1]);
+      handleInvalidUserPointer(args[1], 4);
       f->eax = remove((char *) *(args[1]));
       break;
     case SYS_OPEN:
-      handleInvalidUserPointer(args[1]);
+      handleInvalidUserPointer(args[1], 4);
+      handleInvalidUserPointer(*(args[1]), sizeof(char *) );
       f->eax = open((char *) *(args[1]));
       break;
     case SYS_FILESIZE:
-      handleInvalidUserPointer(args[1]);
+      handleInvalidUserPointer(args[1], 4);
       f->eax = filesize (*(args[1]));
       break;
     case SYS_READ:
-      handleInvalidUserPointer(args[1]);
-      handleInvalidUserPointer(args[2]);
-      handleInvalidUserPointer(args[3]);
+      handleInvalidUserPointer(args[1], 4);
+      handleInvalidUserPointer(args[2], 4);
+      handleInvalidUserPointer(args[3], 4);
+      handleInvalidUserPointer(*(args[2]), *(args[3]) );            // Check all memory regions of buffer
       f->eax = read(*(args[1]), (void *) *(args[2]), *(args[3]));
       break;
     case SYS_WRITE:
-      handleInvalidUserPointer(args[1]);
-      handleInvalidUserPointer(args[2]);
-      handleInvalidUserPointer(args[3]);
+      handleInvalidUserPointer(args[1], 4);
+      handleInvalidUserPointer(args[2], 4);
+      handleInvalidUserPointer(args[3], 4);
+      handleInvalidUserPointer(*(args[2]), *(args[3]) );            // Check all memory regions of buffer
       f->eax = write(*(args[1]), (void *) *(args[2]), *(args[3]));
       break;
     case SYS_SEEK:
-      handleInvalidUserPointer(args[1]);
-      handleInvalidUserPointer(args[2]);
+      handleInvalidUserPointer(args[1], 4);
+      handleInvalidUserPointer(args[2], 4);
       seek(*(args[1]), *(args[2]));
       break;
     case SYS_TELL:
-      handleInvalidUserPointer(args[1]);
+      handleInvalidUserPointer(args[1], 4);
       f->eax = tell(*(args[1]));
       break;
     case SYS_CLOSE:
-      handleInvalidUserPointer(args[1]);
+      handleInvalidUserPointer(args[1], 4);
       close(*(args[1]));
       break;
     default:
@@ -190,6 +196,7 @@ static int wait(pid_t pid) {
 
 static bool create(const char *file_name, unsigned size){
   bool status;
+  if( file_name == NULL ) { return -1; }
   lock_acquire(&fs_lock);
   status = filesys_create(file_name, size);
   lock_release(&fs_lock);
@@ -206,6 +213,7 @@ static bool remove(const char *file_name){
 
 static int open(const char *file_name){
   int result = -1;
+  if( file_name == NULL ) { return -1; }
   struct thread* cur = thread_current();
   lock_acquire(&fs_lock);
 
@@ -245,7 +253,7 @@ static int read(int fd, void *buffer, unsigned size){
   else {
     struct file* f = getFilePointer(fd);
     if( f != NULL ) {
-      result = file_write(f, buffer, size);
+      result = file_read(f, buffer, size);
     }
   }
   lock_release(&fs_lock);
@@ -323,10 +331,17 @@ static bool isValidUserPointer(const void *ptr) {
   return true;
 }
 
-static void handleInvalidUserPointer(const void * ptr) {
-  if( !isValidUserPointer(ptr) ){
-    exit(-1);
+// NOTE : handles validity of L consecutive bytes starting from ptr
+static void handleInvalidUserPointer(const void * ptr,unsigned length) {
+  if( length < 0 ){ exit(-1); }
+  void* inferAddr;
+  for( int idx = 0 ; idx < length ; idx++ ) {
+    inferAddr = ptr+idx;
+    if( !isValidUserPointer( inferAddr ) ){
+      exit(-1);
+    }
   }
+
 }
 
 // NOTE : the function returns NULL if child not found.

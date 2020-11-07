@@ -363,9 +363,6 @@ thread_exit (void)
   intr_disable ();
   /* === ADD START jinho p2q2 ===*/
   struct thread* cur = thread_current();
-  if( cur->exit_status == -1 ) {
-    cur->exit_status = 0;
-  }
   cur->exit_done = true;
   sema_up( &(cur->child_exit_sema) );
   /* === ADD END jinho p2q2 ===*/

@@ -52,7 +52,6 @@ static bool load (const char *cmdline, void (**eip) (void), void **esp);
 /* === DEL END jihun p2q1 ===*/
 
 /* === ADD START jihun p2q1 ===*/
-
 tid_t
 process_execute (const char *cmdline)
 {
@@ -232,20 +231,23 @@ start_process (void *cmdline_)
 int
 process_wait (tid_t child_tid)
 {
+  int childExitStatus;
   struct thread* cur = thread_current();
   struct thread* child = getChildPointer(cur, child_tid);
   ASSERT( child != NULL );
 
   sema_down( &(child->child_exit_sema) );
-  //ASSERT( child->exit_done == true ); TODO
-  //ASSERT( child->exit_status >= 0 ); TODO
+  ASSERT( child->exit_done == true );
+  child->exit_status_returned = true;
 
   list_remove( &(child->child_elem) );
-  //ASSERT( child->status == THREAD_DYING ); TODO
+  ASSERT( child->status == THREAD_DYING );
+
+  childExitStatus = child->exit_status;
+  // NOTE : Delete child thread's page after all operations are done.
   palloc_free_page(child);
 
-  child->exit_status_returned = true;
-  return child->exit_status;
+  return childExitStatus;
   /* === ADD END jinho p2q2 ===*/
 }
 
