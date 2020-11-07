@@ -17,6 +17,10 @@
 #include "threads/palloc.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
+/* === ADD START jinho p2q2 ===*/
+#include "userprog/syscall.h"
+/* === ADD END jinho p2q2 ===*/
+
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
@@ -70,6 +74,14 @@ process_execute (const char *cmdline)
   tid = thread_create (fn_name, PRI_DEFAULT, start_process, cmdline_copy);
   if (tid == TID_ERROR)
     palloc_free_page (cmdline_copy);
+
+  // ADD START jinho p2q2
+  struct thread* cur = thread_current();
+  struct thread* child = thread_ptr(tid);
+  child->ptid = cur->tid;
+  list_push_back( &(thread_current()->children), &(child->child_elem) );
+  // ADD END jinho p2q2
+
   return tid;
 }
 /* === ADD END jihun p2q1 ===*/
@@ -123,38 +135,8 @@ void stack_tokens(int argc, char **parsed_arguments, void **esp)
 
 /* A thread function that loads a user process and starts it
    running. */
-/* === DEL START jihun p2q1 ===*/
-//static void
-//start_process (void *file_name_)
-//{
-//  char *file_name = file_name_;
-//  struct intr_frame if_;
-//  bool success;
-//
-//  /* Initialize interrupt frame and load executable. */
-//  memset (&if_, 0, sizeof if_);
-//  if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
-//  if_.cs = SEL_UCSEG;
-//  if_.eflags = FLAG_IF | FLAG_MBS;
-//  success = load (file_name, &if_.eip, &if_.esp);
-//
-//  /* If load failed, quit. */
-//  palloc_free_page (file_name);
-//  if (!success)
-//    thread_exit ();
-//
-//  /* Start the user process by simulating a return from an
-//     interrupt, implemented by intr_exit (in
-//     threads/intr-stubs.S).  Because intr_exit takes all of its
-//     arguments on the stack in the form of a `struct intr_frame',
-//     we just point the stack pointer (%esp) to our stack frame
-//     and jump to it. */
-//  asm volatile ("movl %0, %%esp; jmp intr_exit" : : "g" (&if_) : "memory");
-//  NOT_REACHED ();
-//}
-/* === DEL END jihun p2q1 ===*/
 
-/* === ADD START jihun p2q1 ===*/
+/* === ADD START jihun p2q1 & jinho p2q2 ===*/
 static void
 start_process (void *cmdline_)
 {
@@ -188,13 +170,34 @@ start_process (void *cmdline_)
   if (success)
     stack_tokens(token_num, parsed_arguments, &if_.esp);
 
+/* === DEL START jinho p2q2 ===*/
+//  /* If load failed, quit. */
+//  palloc_free_page (file_name);
+//  if (!success)
+//    thread_exit ();
+/* === DEL END jinho p2q2 ===*/
+
+/* === ADD START jinho p2q2 ===*/
   /* If load failed, quit. */
+  struct thread* cur = thread_current();
   palloc_free_page (cmdline);
   palloc_free_page (cmdline_copy);
-  if (!success)
+  if (!success){
+    cur->init_status = false;
+    cur->init_done = true;
+    sema_up( &(cur->child_exec_sema) );
     thread_exit ();
+  }
+  cur->init_status = true;
+  cur->init_done = true;
+  sema_up( &(cur->child_exec_sema) );
 
-  // hex_dump(if_.esp , if_.esp , PHYS_BASE - if_.esp , true);
+  // NOTE : hex dump for debugging
+  //hex_dump(if_.esp , if_.esp , PHYS_BASE - if_.esp , true);
+
+/* === ADD END jinho p2q2 ===*/
+
+
 
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
@@ -205,7 +208,7 @@ start_process (void *cmdline_)
   asm volatile ("movl %0, %%esp; jmp intr_exit" : : "g" (&if_) : "memory");
   NOT_REACHED ();
 }
-/* === ADD END jihun p2q1 ===*/
+/* === ADD END jihun p2q1 & jinho p2q2 ===*/
 
 /* Waits for thread TID to die and returns its exit status.  If
    it was terminated by the kernel (i.e. killed due to an
@@ -213,14 +216,38 @@ start_process (void *cmdline_)
    child of the calling process, or if process_wait() has already
    been successfully called for the given TID, returns -1
    immediately, without waiting.
-
    This function will be implemented in problem 2-2.  For now, it
    does nothing. */
+
+/* === DEL START jinho p2q2 ===*/
+//int
+//process_wait (tid_t child_tid UNUSED)
+//{
+//  return -1;
+/* === DEL END jinho p2q2 ===*/
+
+/* === ADD START jinho p2q2 ===*/
 int
-process_wait (tid_t child_tid UNUSED)
+process_wait (tid_t child_tid)
 {
-  while(1);
-  return -1;
+  int childExitStatus;
+  struct thread* cur = thread_current();
+  struct thread* child = getChildPointer(cur, child_tid);
+  ASSERT( child != NULL );
+
+  sema_down( &(child->child_exit_sema) );
+  ASSERT( child->exit_done == true );
+  child->exit_status_returned = true;
+
+  list_remove( &(child->child_elem) );
+  ASSERT( child->status == THREAD_DYING );
+
+  childExitStatus = child->exit_status;
+  // NOTE : Delete child thread's page after all operations are done.
+  palloc_free_page(child);
+
+  return childExitStatus;
+  /* === ADD END jinho p2q2 ===*/
 }
 
 /* Free the current process's resources. */
@@ -229,6 +256,15 @@ process_exit (void)
 {
   struct thread *cur = thread_current ();
   uint32_t *pd;
+
+  /* === ADD START jinho p2q2 ===*/
+  int fd_it;
+  for( fd_it = cur->fd_table_pointer; fd_it >= FD_IDX_START; fd_it-- ){
+    // NOTE : file_close() can handle NULL or already closed file
+    file_close( cur->fd_table[fd_it] );
+  }
+  /* === ADD END jinho p2q2 ===*/
+
 
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
@@ -500,15 +536,11 @@ validate_segment (const struct Elf32_Phdr *phdr, struct file *file)
 /* Loads a segment starting at offset OFS in FILE at address
    UPAGE.  In total, READ_BYTES + ZERO_BYTES bytes of virtual
    memory are initialized, as follows:
-
         - READ_BYTES bytes at UPAGE must be read from FILE
           starting at offset OFS.
-
         - ZERO_BYTES bytes at UPAGE + READ_BYTES must be zeroed.
-
    The pages initialized by this function must be writable by the
    user process if WRITABLE is true, read-only otherwise.
-
    Return true if successful, false if a memory allocation error
    or disk read error occurs. */
 static bool
