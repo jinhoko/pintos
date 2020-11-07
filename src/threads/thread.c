@@ -325,6 +325,26 @@ thread_tid (void)
   return thread_current ()->tid;
 }
 
+/* === ADD START jinho p2q2 ===*/
+struct thread*
+thread_ptr(int tid) {
+
+  struct thread* out = NULL;
+  struct list_elem *e;
+  struct thread* thr;
+  for (e = list_begin (&all_list); e != list_end (&all_list);
+       e = list_next (e))
+  {
+    thr = list_entry (e, struct thread, allelem);
+    if( thr->tid == tid ){
+      out = thr; break;
+    }
+  }
+  return out;
+}
+/* === ADD END jinho p2q2 ===*/
+
+
 /* Deschedules the current thread and destroys it.  Never
    returns to the caller. */
 void
@@ -339,7 +359,13 @@ thread_exit (void)
   /* Remove thread from all threads list, set our status to dying,
      and schedule another process.  That process will destroy us
      when it calls thread_schedule_tail(). */
+
   intr_disable ();
+  /* === ADD START jinho p2q2 ===*/
+  struct thread* cur = thread_current();
+  cur->exit_done = true;
+  sema_up( &(cur->child_exit_sema) );
+  /* === ADD END jinho p2q2 ===*/
   list_remove (&thread_current()->allelem);
   thread_current ()->status = THREAD_DYING;
   schedule ();
@@ -841,6 +867,29 @@ init_thread (struct thread *t, const char *name, int priority)
   t->nice = NICE_DEFAULT;
   t->recent_cpu = RECENT_CPU_DEFAULT;
   /* === ADD END jihun ===*/
+
+  /* === ADD START jinho p2q2 ===*/
+  t->ptid = NULL;
+
+  list_init( &(t->children) );
+
+  sema_init( &(t->child_exec_sema), 0);
+  sema_init( &(t->child_exit_sema), 0);
+  t->init_done = false;
+  t->init_status = NULL;
+  t->exit_done = false;
+  t->exit_status = -1;
+  t->exit_status_returned = false;
+  /* === ADD END jinho p2q2 ===*/
+
+  /* === ADD START jinho p2q2 ===*/
+  int i;
+  for(i=0; i<FD_SIZE; i++){
+    t->fd_table[i] = NULL;
+  }
+  t->fd_table_pointer = 2;
+  /* === ADD END jinho p2q2 ===*/
+
 }
 
 /* Allocates a SIZE-byte frame at the top of thread T's stack and
@@ -909,7 +958,10 @@ thread_schedule_tail (struct thread *prev)
   if (prev != NULL && prev->status == THREAD_DYING && prev != initial_thread)
   {
     ASSERT (prev != cur);
-    palloc_free_page (prev);
+    /* === DEL START jinho p2q2 ===*/
+    //palloc_free_page (prev);
+    /* === DEL END jinho p2q2 ===*/
+
   }
 }
 
