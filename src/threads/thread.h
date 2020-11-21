@@ -9,6 +9,11 @@
 #include "threads/synch.h"
 /* === ADD END jinho q2-2 ===*/
 
+/* === ADD START p3q1 ===*/
+#include <hash.h>
+/* === ADD END p3q1 ===*/
+
+
 /* States in a thread's life cycle. */
 enum thread_status
   {
@@ -154,6 +159,11 @@ struct thread
     /* === ADD START jihun p2q3 ===*/
     struct file *current_file;
     /* === ADD END jihun p2q3 ===*/
+
+    /* === ADD START jihun p3q1 ===*/
+    struct hash pmap;
+    /* === ADD END jihun p3q1 ===*/
+
 
 #ifdef USERPROG
     /* Owned by userprog/process.c. */

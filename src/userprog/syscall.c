@@ -14,6 +14,12 @@
 #include "devices/input.h"
 /* === ADD END jinho p2q2 ===*/
 
+/* === ADD START p3q1 ===*/
+#include <string.h>
+#include "vm/page.h"
+/* === ADD END p3q1 ===*/
+
+
 
 static void syscall_handler (struct intr_frame *);
 
@@ -37,8 +43,10 @@ unsigned tell(int);
 void close(int);
 
 // NOTE : helper functions (locally used)
-static bool isValidPointer(const void *);
+static bool isValidUserPointer(const void *, bool);
 static void handleInvalidUserPointer(const void *, unsigned);
+static void handleInvalidUserPointerWithWriteable(const void *, unsigned);
+static void _handleInvalidUserPointer(const void *, unsigned, bool);
 static struct file* getFilePointer(int);
 
 /* === ADD END jinho p2q2 ===*/
@@ -87,7 +95,8 @@ syscall_handler (struct intr_frame *f)
       break;
     case SYS_EXEC:
       handleInvalidUserPointer(args[1], 4);
-      handleInvalidUserPointer(*(args[1]), sizeof(char *) );
+      // === MODIFY p3q1 === //
+      handleInvalidUserPointer(*(args[1]), strlen( *(args[1]) ) * sizeof(char) );
       f->eax = exec((char *) *(args[1]));
       break;
     case SYS_WAIT:
@@ -97,16 +106,20 @@ syscall_handler (struct intr_frame *f)
     case SYS_CREATE:
       handleInvalidUserPointer(args[1], 4);
       handleInvalidUserPointer(args[2], 4);
-      handleInvalidUserPointer(*(args[1]), sizeof(char *) );
+      // === MODIFY p3q1 === //
+      handleInvalidUserPointer(*(args[1]), strlen( *(args[1]) ) * sizeof(char) );
       f->eax = create((char *) *(args[1]), *(args[2]));
       break;
     case SYS_REMOVE:
       handleInvalidUserPointer(args[1], 4);
+      // === MODIFY p3q1 === //
+      handleInvalidUserPointer(*(args[1]), strlen( *(args[1]) ) * sizeof(char) );
       f->eax = remove((char *) *(args[1]));
       break;
     case SYS_OPEN:
       handleInvalidUserPointer(args[1], 4);
-      handleInvalidUserPointer(*(args[1]), sizeof(char *) );
+      // === MODIFY p3q1 === //
+      handleInvalidUserPointer(*(args[1]), strlen( *(args[1]) ) * sizeof(char) );
       f->eax = open((char *) *(args[1]));
       break;
     case SYS_FILESIZE:
@@ -117,7 +130,8 @@ syscall_handler (struct intr_frame *f)
       handleInvalidUserPointer(args[1], 4);
       handleInvalidUserPointer(args[2], 4);
       handleInvalidUserPointer(args[3], 4);
-      handleInvalidUserPointer(*(args[2]), *(args[3]) );            // Check all memory regions of buffer
+      // === MODIFY p3q1 === //
+      handleInvalidUserPointerWithWriteable(*(args[2]), *(args[3]) );            // Check all memory regions of buffer
       f->eax = read(*(args[1]), (void *) *(args[2]), *(args[3]));
       break;
     case SYS_WRITE:
@@ -316,33 +330,53 @@ void close(int fd){
 
 /* === ADD START jinho p2q2 ===*/
 
+/* === MODIFY START p3q1 ===*/
 // NOTE : helper functions
-static bool isValidUserPointer(const void *ptr) {
+static bool isValidUserPointer(const void *ptr, bool writable) {
   // NOTE : check if ptr
   //        1. is not null
   //        2. references to user area
   //        3. references to a thread-owned area
+  //            3.1. pagemap entry exists for the given address
+  //            3.2. (if writable) has write permission
   if( ptr==NULL ) { return false; }
   if( !is_user_vaddr(ptr) ) { return false; }
   struct thread *cur = thread_current();
-  if( pagedir_get_page(cur->pagedir, ptr) == NULL ) { return false; }
+  /* === DEL START p3q1 ===*/
+//  if( pagedir_get_page(cur->pagedir, ptr) == NULL ) { return false; }
+  /* === DEL END p3q1 ===*/
+  struct pme* pmap_get_pme ( &(cur->pmap), ptr );
+  if ( pme == NULL ) { return false; }
+  if ( writable && (pme->write_permission == false) ) { return false; }
 
-  // All three cases passed.
+  // All cases passed.
   return true;
 }
+/* === MODIFY END p3q1 ===*/
 
+/* === MODIFY START p3q1 ===*/
 // NOTE : handles validity of L consecutive bytes starting from ptr
-static void handleInvalidUserPointer(const void * ptr,unsigned length) {
+static void handleInvalidUserPointer(const void * ptr, unsigned length) {
+  _handleInvalidUserPointer(ptr, length, false);
+}
+/* === MODIFY END p3q1 ===*/
+
+/* === ADD START p3q1 ===*/
+static void handleInvalidUserPointerWithWriteable(const void* ptr, unsigned length){
+  _handleInvalidUserPointer(ptr, length, true);
+}
+
+static void _handleInvalidUserPointer(const void * ptr, unsigned length, bool writable) {
   if( length < 0 ){ exit(-1); }
   void* inferAddr;
   for( int idx = 0 ; idx < length ; idx++ ) {
     inferAddr = ptr+idx;
-    if( !isValidUserPointer( inferAddr ) ){
+    if( !isValidUserPointer( inferAddr, writable ) ){
       exit(-1);
     }
   }
-
 }
+/* === ADD END p3q1 ===*/
 
 // NOTE : the function returns NULL if child not found.
 struct thread* getChildPointer(struct thread* cur, tid_t child_tid){

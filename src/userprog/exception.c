@@ -7,12 +7,20 @@
 /* === ADD START jinho p2q2 ===*/
 #include "userprog/syscall.h"
 /* === ADD END jinho p2q2 ===*/
+/* === ADD START p3q1 ===*/
+#include "userprog/process.h"
+#include "threads/vaddr.h"
+#include "vm/page.h"
+/* === ADD END p3q1 ===*/
 
 /* Number of page faults processed. */
 static long long page_fault_cnt;
 
 static void kill (struct intr_frame *);
 static void page_fault (struct intr_frame *);
+/* === ADD START p3q1 ===*/
+static bool handle_page_fault (struct pme*);
+/* === ADD END p3q1 ===*/
 
 /* Registers handlers for interrupts that can be caused by user
    programs.
@@ -151,21 +159,84 @@ page_fault (struct intr_frame *f)
   write = (f->error_code & PF_W) != 0;
   user = (f->error_code & PF_U) != 0;
 
-  /* === ADD START jinho p2q2 ===*/
-  // NOTE : exit on page faults
-  exit(-1);
-  /* === ADD END jinho p2q2 ===*/
+  /* === ADD START p3q1 ===*/
+  // NOTE : exit(-1) on non-handlable, critical case
+  if ( !not_present
+    || fault_addr == NULL
+    || !is_user_vaddr(fault_addr) )
+  {
+    exit(-1);
+  }
 
+  struct pme* fault_pme = pmap_get_pme(
+          &(thread_current()->pmap) , fault_addr );
 
+  if( !handle_page_fault( fault_pme ) ){
+    exit(-1);
+  }
 
-  /* To implement virtual memory, delete the rest of the function
-     body, and replace it with code that brings in the page to
-     which fault_addr refers. */
-  printf ("Page fault at %p: %s error %s page in %s context.\n",
-          fault_addr,
-          not_present ? "not present" : "rights violation",
-          write ? "writing" : "reading",
-          user ? "user" : "kernel");
-  kill (f);
+  // NOTE : If this point reached, page fault
+  //        is successfully handled.
+
+  /* === ADD END p3q1 ===*/
+
+  /* === DEL START p3q1 ===*/
+//  /* === ADD START jinho p2q2 ===*/
+//  // NOTE : exit on page faults
+//  exit(-1);
+//  /* === ADD END jinho p2q2 ===*/
+//
+//  /* To implement virtual memory, delete the rest of the function
+//     body, and replace it with code that brings in the page to
+//     which fault_addr refers. */
+//  printf ("Page fault at %p: %s error %s page in %s context.\n",
+//          fault_addr,
+//          not_present ? "not present" : "rights violation",
+//          write ? "writing" : "reading",
+//          user ? "user" : "kernel");
+//  kill (f);
+  /* === DEL END p3q1 === */
 }
+
+/* === ADD START p3q1 ===*/
+static bool handle_page_fault(struct pme* fault_pme) {
+  if( fault_pme == NULL ) {
+    // TODO might change afterwards.
+    return false;
+  }
+  ASSERT( fault_pme != NULL );
+  uint8_t *kpage = palloc_get_page (PAL_USER);
+  if( kpage == NULL ) { return false; }
+
+  // NOTE : from now on, do not forcibly return,
+  //        but just mark success = false
+  bool success = true;
+  switch ( fault_pme->type ) {
+    case PME_NULL: break;
+    case PME_EXEC:
+      if( ! load_segment_on_demand( fault_pme, kpage) ) {
+        success = false; break;
+      }
+      if ( ! install_page (fault_pme->vaddr, kpage, fault_pme->write_permission) ) {
+        success = false; break;
+      }
+      // load success
+      fault_pme-> load_status = true;
+      break;
+//    case PME_MMAP:
+//      // todo mmap
+//      break;
+//    case PME_SWAP:
+//      // todo swap
+//      break;
+    default: success = false;
+  }
+
+  // if handle failed, free page
+  if (!success) {
+    palloc_free_page( kpage );
+  }
+  return success;
+}
+/* === ADD END p3q1 ===*/
 
