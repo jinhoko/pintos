@@ -18,9 +18,13 @@ static long long page_fault_cnt;
 
 static void kill (struct intr_frame *);
 static void page_fault (struct intr_frame *);
+
 /* === ADD START p3q1 ===*/
 static bool handle_page_fault (struct pme*);
 /* === ADD END p3q1 ===*/
+/* === ADD START p3q3 ===*/
+static void grow_stack(void*);
+/* === ADD END p3q3 ===*/
 
 /* Registers handlers for interrupts that can be caused by user
    programs.
@@ -171,6 +175,8 @@ page_fault (struct intr_frame *f)
   struct pme* fault_pme = pmap_get_pme(
           &(thread_current()->pmap) , fault_addr );
 
+  // NOTE : it is admissible for page fault handler to
+  //        receive pme => NULL
   if( !handle_page_fault( fault_pme ) ){
     exit(-1);
   }
@@ -200,14 +206,24 @@ page_fault (struct intr_frame *f)
 
 /* === ADD START p3q1 ===*/
 static bool handle_page_fault(struct pme* fault_pme) {
-  if( fault_pme == NULL ) {
-    // TODO might change afterwards.
-    return false;
+  /* === ADD START p3q3 ===*/
+  if( fault_pme == NULL )
+  {
+    // NOTE : We reference from IA32 architecture, which lets push instruction
+    //        to push at most 32 bytes per a single instruction. Thus, if a
+    //        memory reference which refers to region lower than esp-32,
+    //        we consider it a segmentation fault (ref : Pintos manual)
+    if( (f->esp - 32 <= fault_addr) && (0xBF800000 < fault_addr) ) {
+      grow_stack(fault_addr);
+      return true;
+    }
+    else { return false; }
   }
+  /* === ADD END p3q3 ===*/
+
   ASSERT( fault_pme != NULL );
   uint8_t *kpage = palloc_get_page (PAL_USER);
   if( kpage == NULL ) { return false; }
-
   // NOTE : from now on, do not forcibly return,
   //        but just mark success = false
   bool success = true;
@@ -240,3 +256,27 @@ static bool handle_page_fault(struct pme* fault_pme) {
 }
 /* === ADD END p3q1 ===*/
 
+/* === ADD START p3q3 ===*/
+static void grow_stack(void *fault_addr)
+{
+  uint8_t *kpage = palloc_get_page (PAL_USER | PAL_ZERO);
+  uint8_t *upage = pg_round_down(fault_addr);
+
+  if (kpage == NULL)
+    return;
+
+  if( ! install_page (upage, kpage, true) )
+  {
+    palloc_free_page (kpage);
+    return;
+  }
+
+  struct pme* pme_to_alloc = create_pme();
+  pme_to_alloc->vaddr = upage;
+  pme_to_alloc->load_status = true;
+  pme_to_alloc->write_permission = true;
+  pme_to_alloc->type = PME_NULL;
+
+  pmap_set_pme( &(thread_current()->pmap), pme_to_alloc );
+}
+/* === ADD END p3q3 ===*/
