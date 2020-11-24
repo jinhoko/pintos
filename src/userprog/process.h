@@ -8,4 +8,9 @@ int process_wait (tid_t);
 void process_exit (void);
 void process_activate (void);
 
+/* === ADD START p3q2 ===*/
+bool install_page (void *, void *, bool);
+/* === ADD END p3q2 ===*/
+
+
 #endif /* userprog/process.h */

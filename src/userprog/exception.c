@@ -11,6 +11,7 @@
 #include "userprog/process.h"
 #include "threads/vaddr.h"
 #include "vm/page.h"
+#include "threads/palloc.h"
 /* === ADD END p3q1 ===*/
 
 /* Number of page faults processed. */
@@ -20,11 +21,11 @@ static void kill (struct intr_frame *);
 static void page_fault (struct intr_frame *);
 
 /* === ADD START p3q1 ===*/
-static bool handle_page_fault (struct pme*);
+static bool handle_page_fault (struct pme*, void*, struct intr_frame*);
 /* === ADD END p3q1 ===*/
-/* === ADD START p3q3 ===*/
+/* === ADD START p3q2 ===*/
 static void grow_stack(void*);
-/* === ADD END p3q3 ===*/
+/* === ADD END p3q2 ===*/
 
 /* Registers handlers for interrupts that can be caused by user
    programs.
@@ -177,7 +178,7 @@ page_fault (struct intr_frame *f)
 
   // NOTE : it is admissible for page fault handler to
   //        receive pme => NULL
-  if( !handle_page_fault( fault_pme ) ){
+  if( !handle_page_fault( fault_pme, fault_addr, f ) ){
     exit(-1);
   }
 
@@ -205,8 +206,8 @@ page_fault (struct intr_frame *f)
 }
 
 /* === ADD START p3q1 ===*/
-static bool handle_page_fault(struct pme* fault_pme) {
-  /* === ADD START p3q3 ===*/
+static bool handle_page_fault(struct pme* fault_pme, void* fault_addr, struct intr_frame *f ) {
+  /* === ADD START p3q2 ===*/
   if( fault_pme == NULL )
   {
     // NOTE : We reference from IA32 architecture, which lets push instruction
@@ -219,7 +220,7 @@ static bool handle_page_fault(struct pme* fault_pme) {
     }
     else { return false; }
   }
-  /* === ADD END p3q3 ===*/
+  /* === ADD END p3q2 ===*/
 
   ASSERT( fault_pme != NULL );
   uint8_t *kpage = palloc_get_page (PAL_USER);
@@ -256,7 +257,7 @@ static bool handle_page_fault(struct pme* fault_pme) {
 }
 /* === ADD END p3q1 ===*/
 
-/* === ADD START p3q3 ===*/
+/* === ADD START p3q2 ===*/
 static void grow_stack(void *fault_addr)
 {
   uint8_t *kpage = palloc_get_page (PAL_USER | PAL_ZERO);
@@ -279,4 +280,4 @@ static void grow_stack(void *fault_addr)
 
   pmap_set_pme( &(thread_current()->pmap), pme_to_alloc );
 }
-/* === ADD END p3q3 ===*/
+/* === ADD END p3q2 ===*/

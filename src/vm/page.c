@@ -12,6 +12,10 @@
 #include "filesys/file.h"
 #include "string.h"
 
+static unsigned pmap_hash_function (const struct hash_elem*, void* UNUSED);
+static bool pme_less_function (const struct hash_elem*, const struct hash_elem*, void* aux);
+static void pmap_destroy_function (struct hash_elem *e, void *aux);
+
 
 struct pme* create_pme (){
   // NOTE : pme_new can be NULL due to memory lackage
@@ -21,17 +25,17 @@ struct pme* create_pme (){
 }
 
 void pmap_init (struct hash* pmap){
-  hash_init(pmap, pmap_hash_function, &pme_less, NULL);
+  hash_init(pmap, pmap_hash_function, &pme_less_function, NULL);
 }
 
-static unsigned pmap_hash_function (const struct hash_elem* e, void* UNUSED){
+static unsigned pmap_hash_function (const struct hash_elem* e, void* _ UNUSED){
   const struct pme* query_pme;
   query_pme = hash_entry (e, struct pme, elem);
 
   return hash_int ( &query_pme->vaddr );
 }
 
-static bool pme_less (const struct hash_elem* e1, const struct hash_elem* e2, void* UNUSED){
+static bool pme_less_function (const struct hash_elem* e1, const struct hash_elem* e2, void* _ UNUSED){
   const struct pme *e1_pme = hash_entry (e1, struct pme, elem);
   const struct pme *e2_pme = hash_entry (e2, struct pme, elem);
 
@@ -46,7 +50,7 @@ struct pme* pmap_get_pme (struct hash* pmap, void* vaddr) {
 
 // NOTE : insert pme to pmap
 bool pmap_set_pme (struct hash* pmap, struct pme* e) {
-  struct pme_lookup = lookup_pme( pmap, e->vaddr );
+  struct pme* pme_lookup = lookup_pme( pmap, e->vaddr );
   // the entry should not already exist before setting
   if( pme_lookup != NULL ){ return false; }
 
@@ -57,10 +61,11 @@ bool pmap_set_pme (struct hash* pmap, struct pme* e) {
 
 // NOTE : delete pme from pmap (pme still remains in the memory)
 bool pmap_clear_pme (struct hash* pmap, struct pme* e){
-  struct pme_lookup = lookup_pme( pmap, e->vaddr );
+  struct pme* pme_lookup = lookup_pme( pmap, e->vaddr );
   // the entry should exist before setting
   if( pme_lookup == NULL ){ return false; }
 
+  struct thread* cur = thread_current();
   void* kaddr = pagedir_get_page( cur->pagedir, e->vaddr );
   palloc_free_page( kaddr );
   pagedir_clear_page( cur->pagedir, e->vaddr );
@@ -75,14 +80,14 @@ bool pmap_clear_pme (struct hash* pmap, struct pme* e){
 // NOTE : used internally
 static struct pme* lookup_pme (struct hash* pmap, void* vaddr){
   struct pme temp_pme;
-  struct hash_elem target_elem;
+  struct hash_elem * target_elem;
 
   // NOTE : given a vaddr, we query for page address
   temp_pme.vaddr = pg_round_down( vaddr );
-  target_elem = hash_find (pmap, &temp_pme.elem);
+  target_elem = hash_find (pmap, &(temp_pme.elem) );
 
   if (target_elem == NULL) { return NULL; }         // hash entry not found
-  return hash_entry (target_elem, struct pme, elem) // hash entry found
+  return hash_entry (target_elem, struct pme, elem); // hash entry found
 }
 
 // NOTE : destroys all elements and the hash table itself
@@ -118,13 +123,13 @@ bool load_segment_on_demand ( struct pme* e, void* kpage ) {
                     kpage,
                     e->pme_exec_read_bytes,
                     e->pme_exec_read_offset )
-        != (int) e->page_read_bytes)
+        != (int) e->pme_exec_read_bytes)
     {
       return false;
     }
 
   // Set remaining page area to zero
-  memset( kpage + e->pme_exec_read_bytes, 0, e->page_zero_bytes);
+  memset( kpage + e->pme_exec_read_bytes, 0, e->pme_exec_zero_bytes);
 
   return success;
 }

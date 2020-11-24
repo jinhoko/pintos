@@ -345,9 +345,9 @@ static bool isValidUserPointer(const void *ptr, bool writable) {
   /* === DEL START p3q1 ===*/
 //  if( pagedir_get_page(cur->pagedir, ptr) == NULL ) { return false; }
   /* === DEL END p3q1 ===*/
-  struct pme* pmap_get_pme ( &(cur->pmap), ptr );
-  if ( pme == NULL ) { return false; }
-  if ( writable && (pme->write_permission == false) ) { return false; }
+  struct pme* pme_get = pmap_get_pme ( &(cur->pmap), ptr );
+  if ( pme_get == NULL ) { return false; }
+  if ( writable && (pme_get->write_permission == false) ) { return false; }
 
   // All cases passed.
   return true;
