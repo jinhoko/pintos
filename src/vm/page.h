@@ -19,7 +19,7 @@ struct pme {
                           // (false) otherwise
   bool write_permission;  // (true) if writable, (false) otherwise
 
-  pme_type type;          // { PME_EXEC, PME_MMAP, PME_SWAP }
+  pme_type type;          // { PME_EXEC, PME_MMAP, PME_SWAP, PME_NULL }
 
   // PME_EXEC related
   struct file* pme_exec_file;

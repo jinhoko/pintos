@@ -21,7 +21,7 @@ struct pme* create_pme (){
 }
 
 void pmap_init (struct hash* pmap){
-  hash_init(pmap, pmap_hash_function, &pme_less, NULL);
+  hash_init(pmap, pmap_hash_function, &pme_less_function, NULL);
 }
 
 static unsigned pmap_hash_function (const struct hash_elem* e, void* UNUSED){
@@ -31,7 +31,7 @@ static unsigned pmap_hash_function (const struct hash_elem* e, void* UNUSED){
   return hash_int ( &query_pme->vaddr );
 }
 
-static bool pme_less (const struct hash_elem* e1, const struct hash_elem* e2, void* UNUSED){
+static bool pme_less_function (const struct hash_elem* e1, const struct hash_elem* e2, void* UNUSED){
   const struct pme *e1_pme = hash_entry (e1, struct pme, elem);
   const struct pme *e2_pme = hash_entry (e2, struct pme, elem);
 
@@ -55,7 +55,7 @@ bool pmap_set_pme (struct hash* pmap, struct pme* e) {
   return true;
 }
 
-// NOTE : delete pme from pmap (pme still remains in the memory)
+// NOTE : delete pme from pmap (pme itself still remains in the memory)
 bool pmap_clear_pme (struct hash* pmap, struct pme* e){
   struct pme_lookup = lookup_pme( pmap, e->vaddr );
   // the entry should exist before setting

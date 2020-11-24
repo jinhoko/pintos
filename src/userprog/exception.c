@@ -209,6 +209,8 @@ static bool handle_page_fault(struct pme* fault_pme) {
   /* === ADD START p3q3 ===*/
   if( fault_pme == NULL )
   {
+    // NOTE : If fault_pme is NULL, and handler is being entered, it means that
+    //        the fault has occured in stack area access.
     // NOTE : We reference from IA32 architecture, which lets push instruction
     //        to push at most 32 bytes per a single instruction. Thus, if a
     //        memory reference which refers to region lower than esp-32,
