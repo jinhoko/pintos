@@ -41,8 +41,6 @@ int write(int, const void *, unsigned);
 void seek(int, unsigned);
 unsigned tell(int);
 void close(int);
-mapid_t mmap(int, void *);
-void munmap(mapid_t);
 
 // NOTE : helper functions (locally used)
 static bool isValidUserPointer(const void *, bool);
@@ -156,18 +154,6 @@ syscall_handler (struct intr_frame *f)
       handleInvalidUserPointer(args[1], 4);
       close(*(args[1]));
       break;
-    /* === ADD START p3q3 ===*/
-    case SYS_MMAP:
-      handleInvalidUserPointer(args[1], 4);
-      handleInvalidUserPointer(args[2], 4);
-      handleInvalidUserPointer(*(args[2]), sizeof(char) );
-      f->eax = mmap( *(args[1]), *(args[2]) );
-      break;
-    case SYS_MUNMAP:
-      handleInvalidUserPointer(args[1], 4);
-      munmap( *(args[1]) );
-      break;
-    /* === ADD END p3q3 ===*/
     default:
       // NOTE : invalid system call
       exit(-1);
@@ -339,17 +325,8 @@ void close(int fd){
   lock_release(&fs_lock);
   return;
 }
+
 /* === ADD END jinho p2q2 ===*/
-/* === ADD START p3q3 ===*/
-mapid_t mmap(int fd, void* addr) {
-
-}
-void munmap(mapid_t mapping) {
-
-}
-/* === ADD END p3q3 ===*/
-
-
 
 /* === ADD START jinho p2q2 ===*/
 
