@@ -3,7 +3,7 @@
 #ifndef VM_PAGE_H
 #define VM_PAGE_H
 
-#include "<hash.h>"
+#include <hash.h>
 
 typedef enum _pme_type {
     PME_EXEC = 0001,   // loading from executable
@@ -14,7 +14,8 @@ typedef enum _pme_type {
 
 // NOTE : pme stands for pagemap entry
 struct pme {
-  void *vaddr;
+  void *vaddr;            // Must be multiples of 4K
+                          // i.e. pg_round_down must be applied
   bool load_status;       // (true) if loaded to physical memory
                           // (false) otherwise
   bool write_permission;  // (true) if writable, (false) otherwise
@@ -39,8 +40,6 @@ struct pme {
 struct pme* create_pme ();
 
 void pmap_init (struct hash*);
-static unsigned pmap_hash_function (const struct hash_elem*, void* UNUSED);
-static bool pme_less (const struct hash_elem*, const struct hash_elem*, void* UNUSED);
 
 struct pme* pmap_get_pme (struct hash*, void* vaddr);
 
@@ -50,7 +49,6 @@ bool pmap_clear_pme (struct hash*, struct pme*);
 static struct pme* lookup_pme (struct hash*, void*);
 
 void pmap_destroy (struct hash*);
-static void pmap_destroy_function (struct hash_elem *e, void *aux UNUSED);
 
 bool load_segment_on_demand ( struct pme*, void* );
 

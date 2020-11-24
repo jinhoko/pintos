@@ -173,7 +173,7 @@ start_process (void *cmdline_)
   /* === ADD START p3q1 ===*/
   // NOTE : hash table must be set before load () is called
   struct thread* cur = thread_current();
-  pmap_init ( cur->pmap );
+  pmap_init ( &(cur->pmap) );
   /* === ADD END p3q1 ===*/
 
   /* Initialize interrupt frame and load executable. */
@@ -196,7 +196,6 @@ start_process (void *cmdline_)
 
 /* === ADD START jinho p2q2 ===*/
   /* If load failed, quit. */
-  struct thread* cur = thread_current();
   palloc_free_page (cmdline);
   palloc_free_page (cmdline_copy);
   if (!success){
@@ -534,7 +533,9 @@ load (const char *file_name, void (**eip) (void), void **esp)
 
 /* load() helpers. */
 
-static bool install_page (void *upage, void *kpage, bool writable);
+/* === DEL START p3q2 ===*/
+//static bool install_page (void *upage, void *kpage, bool writable);
+/* === DEL END p3q2 ===*/
 
 /* Checks whether PHDR describes a valid, loadable segment in
    FILE and returns true if so, false otherwise. */
@@ -678,7 +679,9 @@ setup_stack (void **esp)
   /* === ADD START p3q1 ===*/
   if( success ) {
     struct pme* pme_to_alloc = create_pme();
-    pme_to_alloc->vaddr = ((uint8_t *) PHYS_BASE) - PGSIZE;
+    void* stack_addr = ((uint8_t *) PHYS_BASE) - PGSIZE;
+    ASSERT( pg_ofs(stack_addr) == 0 );
+    pme_to_alloc->vaddr = stack_addr;
     pme_to_alloc->load_status = true;
     pme_to_alloc->write_permission = true;
     pme_to_alloc->type = PME_NULL;
@@ -701,7 +704,11 @@ setup_stack (void **esp)
    with palloc_get_page().
    Returns true on success, false if UPAGE is already mapped or
    if memory allocation fails. */
-static bool
+/* === DEL START p3q2 ===*/
+//static bool
+/* === DEL END p3q2 ===*/
+//* === ADD START p3q2 ===*/
+bool
 install_page (void *upage, void *kpage, bool writable)
 {
   struct thread *t = thread_current ();
