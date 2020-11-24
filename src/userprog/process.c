@@ -679,7 +679,9 @@ setup_stack (void **esp)
   /* === ADD START p3q1 ===*/
   if( success ) {
     struct pme* pme_to_alloc = create_pme();
-    pme_to_alloc->vaddr = ((uint8_t *) PHYS_BASE) - PGSIZE;
+    void* stack_addr = ((uint8_t *) PHYS_BASE) - PGSIZE;
+    ASSERT( pg_ofs(stack_addr) == 0 );
+    pme_to_alloc->vaddr = stack_addr;
     pme_to_alloc->load_status = true;
     pme_to_alloc->write_permission = true;
     pme_to_alloc->type = PME_NULL;

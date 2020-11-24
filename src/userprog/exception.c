@@ -24,7 +24,7 @@ static void page_fault (struct intr_frame *);
 static bool handle_page_fault (struct pme*, void*, struct intr_frame*);
 /* === ADD END p3q1 ===*/
 /* === ADD START p3q2 ===*/
-static void grow_stack(void*);
+static int grow_stack(void*);
 /* === ADD END p3q2 ===*/
 
 /* Registers handlers for interrupts that can be caused by user
@@ -208,15 +208,17 @@ page_fault (struct intr_frame *f)
 /* === ADD START p3q1 ===*/
 static bool handle_page_fault(struct pme* fault_pme, void* fault_addr, struct intr_frame *f ) {
   /* === ADD START p3q2 ===*/
-  if( fault_pme == NULL )
-  {
+
+  // NOTE : this invariant should be satisfied only when
+  //        esp is referring to lower level of stack.
+  if( fault_pme == NULL ) {
     // NOTE : We reference from IA32 architecture, which lets push instruction
     //        to push at most 32 bytes per a single instruction. Thus, if a
     //        memory reference which refers to region lower than esp-32,
     //        we consider it a segmentation fault (ref : Pintos manual)
     if( (f->esp - 32 <= fault_addr) && (0xBF800000 < fault_addr) ) {
-      grow_stack(fault_addr);
-      return true;
+      bool stack_grow_result = grow_stack(fault_addr);
+      return stack_grow_result;
     }
     else { return false; }
   }
@@ -258,18 +260,20 @@ static bool handle_page_fault(struct pme* fault_pme, void* fault_addr, struct in
 /* === ADD END p3q1 ===*/
 
 /* === ADD START p3q2 ===*/
-static void grow_stack(void *fault_addr)
+static int grow_stack(void *fault_addr)
 {
   uint8_t *kpage = palloc_get_page (PAL_USER | PAL_ZERO);
   uint8_t *upage = pg_round_down(fault_addr);
 
+  bool success = false;
+
   if (kpage == NULL)
-    return;
+    return false;
 
   if( ! install_page (upage, kpage, true) )
   {
     palloc_free_page (kpage);
-    return;
+    return false;
   }
 
   struct pme* pme_to_alloc = create_pme();
@@ -279,5 +283,7 @@ static void grow_stack(void *fault_addr)
   pme_to_alloc->type = PME_NULL;
 
   pmap_set_pme( &(thread_current()->pmap), pme_to_alloc );
+
+  return true;
 }
 /* === ADD END p3q2 ===*/

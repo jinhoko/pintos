@@ -14,7 +14,8 @@ typedef enum _pme_type {
 
 // NOTE : pme stands for pagemap entry
 struct pme {
-  void *vaddr;
+  void *vaddr;            // Must be multiples of 4K
+                          // i.e. pg_round_down must be applied
   bool load_status;       // (true) if loaded to physical memory
                           // (false) otherwise
   bool write_permission;  // (true) if writable, (false) otherwise

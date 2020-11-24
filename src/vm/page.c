@@ -12,6 +12,8 @@
 #include "filesys/file.h"
 #include "string.h"
 
+#include <stdio.h>
+
 static unsigned pmap_hash_function (const struct hash_elem*, void* UNUSED);
 static bool pme_less_function (const struct hash_elem*, const struct hash_elem*, void* aux);
 static void pmap_destroy_function (struct hash_elem *e, void *aux);
@@ -25,26 +27,28 @@ struct pme* create_pme (){
 }
 
 void pmap_init (struct hash* pmap){
-  hash_init(pmap, pmap_hash_function, &pme_less_function, NULL);
+  hash_init(pmap, pmap_hash_function, pme_less_function, NULL);
 }
 
-static unsigned pmap_hash_function (const struct hash_elem* e, void* _ UNUSED){
+static unsigned pmap_hash_function (const struct hash_elem* e, void* aux UNUSED){
   const struct pme* query_pme;
   query_pme = hash_entry (e, struct pme, elem);
+  ASSERT( query_pme != NULL );
 
-  return hash_int ( &query_pme->vaddr );
+  return hash_bytes (&query_pme->vaddr, sizeof(query_pme->vaddr) );
 }
 
-static bool pme_less_function (const struct hash_elem* e1, const struct hash_elem* e2, void* _ UNUSED){
+static bool pme_less_function (const struct hash_elem* e1, const struct hash_elem* e2, void* aux UNUSED){
   const struct pme *e1_pme = hash_entry (e1, struct pme, elem);
   const struct pme *e2_pme = hash_entry (e2, struct pme, elem);
 
   return e1_pme->vaddr < e2_pme->vaddr;
 }
 
-
 // NOTE : query pme that is in charge of vaddr
 struct pme* pmap_get_pme (struct hash* pmap, void* vaddr) {
+  // toerase
+  //printf("get query addr: %p\n", vaddr);
   return lookup_pme( pmap, vaddr );
 }
 
@@ -53,6 +57,9 @@ bool pmap_set_pme (struct hash* pmap, struct pme* e) {
   struct pme* pme_lookup = lookup_pme( pmap, e->vaddr );
   // the entry should not already exist before setting
   if( pme_lookup != NULL ){ return false; }
+
+  // toerase
+  //printf("set query addr: %p\n", e->vaddr);
 
   // hash insert
   hash_insert( pmap, &(e->elem) );
@@ -77,14 +84,34 @@ bool pmap_clear_pme (struct hash* pmap, struct pme* e){
   return true;
 }
 
+// toerase
+void printHashElem (struct hash_elem *eelem, void *aux ) {
+  printf("%p ", hash_entry (eelem, struct pme, elem)->vaddr );
+}
+void printHash (struct hash *hash ) {
+  printf("hash > ");
+  hash_apply (hash, printHashElem);
+  printf("\n");
+}
+
+
 // NOTE : used internally
 static struct pme* lookup_pme (struct hash* pmap, void* vaddr){
   struct pme temp_pme;
   struct hash_elem * target_elem;
 
+  // toerase
+  //printHash(pmap);
+
   // NOTE : given a vaddr, we query for page address
+  // NOTE : this access pattern referenced from the pintos manual p.88
   temp_pme.vaddr = pg_round_down( vaddr );
+  ASSERT( pg_ofs( temp_pme.vaddr ) == 0 );
   target_elem = hash_find (pmap, &(temp_pme.elem) );
+
+  // toerase
+  //printf("lookup query addr: %p round %p\n", vaddr, temp_pme.vaddr);
+  //if (target_elem == NULL) {printf("lookup not found\n");}
 
   if (target_elem == NULL) { return NULL; }         // hash entry not found
   return hash_entry (target_elem, struct pme, elem); // hash entry found
