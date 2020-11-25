@@ -13,6 +13,10 @@
 #include "vm/page.h"
 #include "threads/palloc.h"
 /* === ADD END p3q1 ===*/
+/* === ADD START p3q3 ===*/
+#include "vm/mmap.h"
+/* === ADD END p3q3 ===*/
+
 
 /* Number of page faults processed. */
 static long long page_fault_cnt;
@@ -230,8 +234,11 @@ static bool handle_page_fault(struct pme* fault_pme, void* fault_addr, struct in
   // NOTE : from now on, do not forcibly return,
   //        but just mark success = false
   bool success = true;
+
+  struct mmap_meta* mmeta;
   switch ( fault_pme->type ) {
     case PME_NULL: break;
+    // ========================================================= //
     case PME_EXEC:
       if( ! load_segment_on_demand( fault_pme, kpage) ) {
         success = false; break;
@@ -242,9 +249,20 @@ static bool handle_page_fault(struct pme* fault_pme, void* fault_addr, struct in
       // load success
       fault_pme-> load_status = true;
       break;
-//    case PME_MMAP:
-//      // todo mmap
-//      break;
+    // ========================================================= //
+    case PME_MMAP:
+      mmeta = get_mmap_meta_from_file ( fault_pme->pme_mmap_file );
+      ASSERT( mmeta != NULL );
+      if( ! load_mmap_on_demand( mmeta, fault_pme, kpage) ) {
+        success = false; break;
+      }
+      if ( ! install_page (fault_pme->vaddr, kpage, fault_pme->write_permission) ) {
+        success = false; break;
+      }
+      // load success
+      fault_pme-> load_status = true;
+      break;
+    // ========================================================= //
 //    case PME_SWAP:
 //      // todo swap
 //      break;

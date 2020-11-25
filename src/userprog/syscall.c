@@ -19,6 +19,10 @@
 #include "vm/page.h"
 /* === ADD END p3q1 ===*/
 
+/* === ADD START p3q3 ===*/
+#include "vm/mmap.h"
+/* === ADD END p3q3 ===*/
+
 
 
 static void syscall_handler (struct intr_frame *);
@@ -41,6 +45,10 @@ int write(int, const void *, unsigned);
 void seek(int, unsigned);
 unsigned tell(int);
 void close(int);
+/* === ADD START p3q1 ===*/
+mapid_t mmap(int, void *);
+void munmap(mapid_t);
+/* === ADD END p3q1 ===*/
 
 // NOTE : helper functions (locally used)
 static bool isValidUserPointer(const void *, bool);
@@ -154,6 +162,16 @@ syscall_handler (struct intr_frame *f)
       handleInvalidUserPointer(args[1], 4);
       close(*(args[1]));
       break;
+    /* === ADD START p3q3 ===*/
+    case SYS_MMAP:
+      handleInvalidUserPointer(args[1], 4);
+      handleInvalidUserPointer(args[2], 4);
+      f->eax = mmap( *(args[1]), (void*) *(args[2]) );
+      break;
+    case SYS_MUNMAP:
+      munmap( *(args[1]) );
+      break;
+    /* === ADD END p3q3 ===*/
     default:
       // NOTE : invalid system call
       exit(-1);
@@ -325,8 +343,78 @@ void close(int fd){
   lock_release(&fs_lock);
   return;
 }
-
 /* === ADD END jinho p2q2 ===*/
+
+/* === ADD START p3q3 ===*/
+mapid_t mmap(int fd, void* addr) {
+
+  // check availability, return -1 if fails.
+  struct file* f = getFilePointer(fd);
+  if( f == NULL ) { return -1; }
+  if( check_mmap_availability( fd, addr ) == false) { return -1; }
+
+  //printf("mmap not fauil1\n");
+
+  // from now on, file is assumed to be open, consider the lock
+  lock_acquire(&fs_lock);
+  bool success = true;
+
+  //printf("mmap not fauil2\n");
+
+  // file_reopen
+  struct file* f_copy = file_reopen(f);
+  ASSERT( f_copy != NULL);
+  //printf("mmap not fauil2-1\n");
+
+  // generate and insert mmap_meta to struct
+  mapid_t mid = 0;
+  //printf("mmap not fauil2-2-2\n");
+
+  struct mmap_meta* mmeta = malloc( sizeof(struct mmap_meta) );
+  mmap_meta_init(mmeta);
+  mmeta->mapid = mid;
+  mmeta->file = f_copy;
+
+  //printf("mmap not fauil33\n");
+
+  // load_mmap (lazy loading)
+  success = load_mmap( f_copy, mmeta, addr );
+  ASSERT( success ); // if this assertion fails,
+                     // manually deallocate pmes
+  list_push_back( &(thread_current()->mmap_list), &(mmeta->elem) );
+  //printf("mmap not fauil3\n");
+
+  lock_release(&fs_lock);
+  // return mapid
+  if( success == false) {
+    free( mmeta );
+    mid = -1;
+  }
+  return mid;
+}
+
+void munmap(mapid_t mapping) {
+
+  // find mmap_list
+  struct mmap_meta* mmeta = get_mmap_meta( mapping );
+  ASSERT(mmeta != NULL);
+
+  // clear all pmes
+  ASSERT( unload_mmap( mmeta ) == true );
+
+  // close file
+  lock_acquire(&fs_lock);
+  file_close( mmeta->file );
+  lock_release(&fs_lock);
+
+  // pop and deallocate mmap_meta
+  list_remove( &(mmeta->elem) );
+  free( mmeta );
+
+  return;
+}
+/* === ADD END p3q3 ===*/
+
 
 /* === ADD START jinho p2q2 ===*/
 

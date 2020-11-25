@@ -20,10 +20,12 @@
 /* === ADD START jinho p2q2 ===*/
 #include "userprog/syscall.h"
 /* === ADD END jinho p2q2 ===*/
-
 /* === ADD START p3q1 ===*/
 #include "vm/page.h"
-/* === ADD END p3q1 ===*/
+/* === ADD END p3q3 ===*/
+/* === ADD START p3q1 ===*/
+#include "vm/mmap.h"
+/* === ADD END p3q3 ===*/
 
 
 static thread_func start_process NO_RETURN;
@@ -176,6 +178,10 @@ start_process (void *cmdline_)
   pmap_init ( &(cur->pmap) );
   /* === ADD END p3q1 ===*/
 
+  /* === ADD START p3q3 ===*/
+  list_init( &(cur->mmap_list) );
+  /* === ADD END p3q3 ===*/
+
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
@@ -307,6 +313,7 @@ process_exit (void)
   // NOTE : allow modification of current file
   file_close(cur->current_file);
   /* === ADD END jihun p2q3 ===*/
+
 }
 
 /* Sets up the CPU for running user code in the current

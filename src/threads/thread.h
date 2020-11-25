@@ -164,6 +164,9 @@ struct thread
     struct hash pmap;
     /* === ADD END jihun p3q1 ===*/
 
+    /* === ADD START p3q3 ===*/
+    struct list mmap_list;
+    /* === ADD END p3q3 ===*/
 
 #ifdef USERPROG
     /* Owned by userprog/process.c. */

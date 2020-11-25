@@ -28,11 +28,18 @@ struct pme {
   size_t       pme_exec_read_bytes;
   size_t       pme_exec_zero_bytes;
 
-  // PME_MMAP related todo
+  // PME_MMAP related
+  struct file* pme_mmap_file;
+  int          pme_mmap_read_offset;
+  size_t       pme_mmap_read_bytes;
+  size_t       pme_mmap_zero_bytes;
 
   // PME_SWAP related todo
 
-  struct hash_elem elem;
+  struct hash_elem elem;          // used to insert to struct thread.pmap
+  /* === ADD START p3q3 ===*/
+  struct list_elem mmap_elem;     // used to insert to struct mmap_meta.pme_list
+  /* === ADD END p3q3 ===*/
 };
 
 // NOTE : pmap stands for pagemap,
@@ -44,7 +51,8 @@ void pmap_init (struct hash*);
 struct pme* pmap_get_pme (struct hash*, void* vaddr);
 
 bool pmap_set_pme (struct hash*, struct pme*);
-bool pmap_clear_pme (struct hash*, struct pme*);
+bool pmap_clear_pme (struct hash*, struct pme*, bool);
+bool pmap_flush_pme_data (struct pme*, const void*);
 
 static struct pme* lookup_pme (struct hash*, void*);
 

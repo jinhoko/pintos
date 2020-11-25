@@ -47,8 +47,6 @@ static bool pme_less_function (const struct hash_elem* e1, const struct hash_ele
 
 // NOTE : query pme that is in charge of vaddr
 struct pme* pmap_get_pme (struct hash* pmap, void* vaddr) {
-  // toerase
-  //printf("get query addr: %p\n", vaddr);
   return lookup_pme( pmap, vaddr );
 }
 
@@ -58,60 +56,64 @@ bool pmap_set_pme (struct hash* pmap, struct pme* e) {
   // the entry should not already exist before setting
   if( pme_lookup != NULL ){ return false; }
 
-  // toerase
-  //printf("set query addr: %p\n", e->vaddr);
-
   // hash insert
   hash_insert( pmap, &(e->elem) );
   return true;
 }
 
-// NOTE : delete pme from pmap (pme itself still remains in the memory)
-bool pmap_clear_pme (struct hash* pmap, struct pme* e){
+// NOTE : delete pme & free page from pmap
+bool pmap_clear_pme (struct hash* pmap, struct pme* e, bool flush_on_dirty ){
   struct pme* pme_lookup = lookup_pme( pmap, e->vaddr );
   // the entry should exist before setting
   if( pme_lookup == NULL ){ return false; }
 
   struct thread* cur = thread_current();
   void* kaddr = pagedir_get_page( cur->pagedir, e->vaddr );
+
+  // flush mechanism -> operated on munmap
+  if( pagedir_is_dirty( cur->pagedir, e->vaddr ) ) {
+    ASSERT( pmap_flush_pme_data( e, kaddr ) == true );
+  }
+
   palloc_free_page( kaddr );
   pagedir_clear_page( cur->pagedir, e->vaddr );
-  free( e );
 
   // hash delete
   hash_delete( pmap, &(e->elem) );
 
+  // free pme
+  free(e);
+
   return true;
 }
 
-// toerase
-void printHashElem (struct hash_elem *eelem, void *aux ) {
-  printf("%p ", hash_entry (eelem, struct pme, elem)->vaddr );
-}
-void printHash (struct hash *hash ) {
-  printf("hash > ");
-  hash_apply (hash, printHashElem);
-  printf("\n");
-}
+bool pmap_flush_pme_data (struct pme* e, const void* buffer) {
 
+  // Flush if mmap corrupted
+  if( e->type == PME_MMAP ){
+    if (file_write_at( e->pme_mmap_file,
+                      buffer,
+                      e->pme_mmap_read_bytes,
+                      e->pme_mmap_read_offset )
+        != (int) e->pme_mmap_read_bytes)
+    {
+      return false;
+    }
+
+  }
+  return true;
+}
 
 // NOTE : used internally
 static struct pme* lookup_pme (struct hash* pmap, void* vaddr){
   struct pme temp_pme;
   struct hash_elem * target_elem;
 
-  // toerase
-  //printHash(pmap);
-
   // NOTE : given a vaddr, we query for page address
   // NOTE : this access pattern referenced from the pintos manual p.88
   temp_pme.vaddr = pg_round_down( vaddr );
   ASSERT( pg_ofs( temp_pme.vaddr ) == 0 );
   target_elem = hash_find (pmap, &(temp_pme.elem) );
-
-  // toerase
-  //printf("lookup query addr: %p round %p\n", vaddr, temp_pme.vaddr);
-  //if (target_elem == NULL) {printf("lookup not found\n");}
 
   if (target_elem == NULL) { return NULL; }         // hash entry not found
   return hash_entry (target_elem, struct pme, elem); // hash entry found
@@ -132,8 +134,12 @@ static void pmap_destroy_function (struct hash_elem *e, void *aux UNUSED){
   void* kaddr;
 
   // if loaded, free page
-  if( pme_target->load_status == true ) {
+  if( pme_target -> load_status == true ) {
     kaddr = pagedir_get_page( cur->pagedir, pme_target->vaddr );
+    // NOTE : flush if dirty
+    if( pagedir_is_dirty( cur->pagedir, pme_target->vaddr ) ) {
+      pmap_flush_pme_data( pme_target, kaddr );
+    }
     palloc_free_page( kaddr );
     pagedir_clear_page( cur->pagedir, pme_target->vaddr );
   }
