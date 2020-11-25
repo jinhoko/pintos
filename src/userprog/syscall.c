@@ -353,36 +353,27 @@ mapid_t mmap(int fd, void* addr) {
   if( f == NULL ) { return -1; }
   if( check_mmap_availability( fd, addr ) == false) { return -1; }
 
-  //printf("mmap not fauil1\n");
-
   // from now on, file is assumed to be open, consider the lock
   lock_acquire(&fs_lock);
   bool success = true;
 
-  //printf("mmap not fauil2\n");
-
   // file_reopen
   struct file* f_copy = file_reopen(f);
   ASSERT( f_copy != NULL);
-  //printf("mmap not fauil2-1\n");
 
   // generate and insert mmap_meta to struct
   mapid_t mid = 0;
-  //printf("mmap not fauil2-2-2\n");
 
   struct mmap_meta* mmeta = malloc( sizeof(struct mmap_meta) );
   mmap_meta_init(mmeta);
   mmeta->mapid = mid;
   mmeta->file = f_copy;
 
-  //printf("mmap not fauil33\n");
-
   // load_mmap (lazy loading)
   success = load_mmap( f_copy, mmeta, addr );
   ASSERT( success ); // if this assertion fails,
                      // manually deallocate pmes
   list_push_back( &(thread_current()->mmap_list), &(mmeta->elem) );
-  //printf("mmap not fauil3\n");
 
   lock_release(&fs_lock);
   // return mapid

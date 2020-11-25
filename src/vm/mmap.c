@@ -50,12 +50,10 @@ mapid_t gen_mmap_id () {
   struct thread* cur = thread_current();
   mapid_t maxid = 0;
   mapid_t newid;
-  //printf("mmap not fauil123 \n" );
 
   if( list_empty(&cur->mmap_list) ) {    // when mmap_list empty, mapid=0
     return 0;
   }
-  //printf("mmap not fauil12333 \n" );
 
   struct list_elem *e;
   for (e = list_begin( &cur->mmap_list );
@@ -65,7 +63,6 @@ mapid_t gen_mmap_id () {
     struct mmap_meta *mmeta = list_entry (e, struct mmap_meta, elem);
     maxid = mmeta->mapid > (int) maxid ? mmeta->mapid : maxid;
   }
-  //printf("mmap not 789\n");
 
   newid = maxid + 1;
   return newid;
