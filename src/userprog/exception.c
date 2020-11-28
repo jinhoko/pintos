@@ -237,6 +237,7 @@ static bool handle_page_fault(struct pme* fault_pme, void* fault_addr, struct in
 
   struct mmap_meta* mmeta;
   switch ( fault_pme->type ) {
+    // ========================================================= //
     case PME_NULL: break;
     // ========================================================= //
     case PME_EXEC:
@@ -264,7 +265,8 @@ static bool handle_page_fault(struct pme* fault_pme, void* fault_addr, struct in
       break;
     // ========================================================= //
 //    case PME_SWAP:
-//      // todo swap
+//      // todo swap, swap in
+//      // change load status // this means our swap algorithm has worked.
 //      break;
     default: success = false;
   }

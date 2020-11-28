@@ -86,16 +86,44 @@ palloc_get_multiple (enum palloc_flags flags, size_t page_cnt)
   else
     pages = NULL;
 
-  if (pages != NULL) 
+  if (pages != NULL)
     {
       if (flags & PAL_ZERO)
         memset (pages, 0, PGSIZE * page_cnt);
     }
-  else 
+  else
     {
-      if (flags & PAL_ASSERT)
+      /* === ADD START p3q4 ===*/
+      // NOTE : This section is entered when page allocation is unavailable.
+      //        We modify this section to try eviction, only when user pool access
+      //        and in single page allocation.
+      //        If eviction condition unsatisfied or eviction fails, the kernel will
+      //        omit panic.
+      bool evict_success = false;
+      if ( flags & PAL_USER && page_cnt == 1) {
+        // get current frame
+        evict_success = 1; // call evict
+        // delete frame
+        // call set frame
+      }
+      if (flags & PAL_ASSERT || !eviction_success ){
         PANIC ("palloc_get: out of pages");
+      }
+      /* === ADD END p3q4 ===*/
+      /* === DEL START p3q4 ===*/
+//      if (flags & PAL_ASSERT){
+//        PANIC ("palloc_get: out of pages");
+//      }
+      /* === DEL END p3q4 ===*/
     }
+
+  /* === ADD START p3q4 ===*/
+  // NOTE : at this point, malloc is available since
+  //        malloc_init is executed in this function
+  //        is guaranteed to execute after that.
+  // todo if user pool dynamically add to frame lazily
+  // add frame
+  /* === ADD END p3q4 ===*/
 
   return pages;
 }
@@ -139,6 +167,9 @@ palloc_free_multiple (void *pages, size_t page_cnt)
 
   ASSERT (bitmap_all (pool->used_map, page_idx, page_cnt));
   bitmap_set_multiple (pool->used_map, page_idx, page_cnt, false);
+
+  // todo after this, deallocate
+  // note that next victim should be considered ( consider list size 0 or 1 )
 }
 
 /* Frees the page at PAGE. */

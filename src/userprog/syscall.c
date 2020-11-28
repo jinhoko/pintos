@@ -361,7 +361,7 @@ mapid_t mmap(int fd, void* addr) {
   struct file* f_copy = file_reopen(f);
   ASSERT( f_copy != NULL);
 
-  // generate and insert mmap_meta to struct
+  // file_reopen
   mapid_t mid = 0;
 
   struct mmap_meta* mmeta = malloc( sizeof(struct mmap_meta) );
@@ -391,10 +391,10 @@ void munmap(mapid_t mapping) {
   ASSERT(mmeta != NULL);
 
   // clear all pmes
+  lock_acquire(&fs_lock);
   ASSERT( unload_mmap( mmeta ) == true );
 
   // close file
-  lock_acquire(&fs_lock);
   file_close( mmeta->file );
   lock_release(&fs_lock);
 
