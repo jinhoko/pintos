@@ -4,30 +4,35 @@
 
 #include <list.h>
 #include "threads/thread.h"
+#include "vm/page.h"
 
 // NOTE : The overall design motivation of frame
 //        is to resemble the interfaces of palloc
 //        as much as possible.
 //
 struct frame {
-    void*              kaddr;  // kernel memory address
-    struct thread*     thr;    // thread pointer
+    void*              kaddr;           // kernel memory address
+    bool               vaddr_installed; // whether vaddr is installed
+    void*              vaddr;           // virtual memory address of that page
+    struct thread*     thr;             // thread pointer
     struct list_elem   elem;
 };
 
-// todo all
-
-
 void frame_table_init();
-void insert_frame();
-void remove_frame();
+
+struct frame* create_frame ( void* , struct thread* );
+bool install_vaddr_to_frame ( void* );
+void find_frame( void* );
+void insert_frame( struct frame* );
+void remove_frame( struct frame* );
 
 /* page replacement related */
-bool evict_page();
+bool evict_page( struct frame* );
 
-void get_current_victim();
+struct frame* get_current_victim();
 void set_next_victim();
-
+bool is_victim ( struct frame* );
+void replace_victim( struct frame* );
 
 #endif //VM_FRAME_H
 

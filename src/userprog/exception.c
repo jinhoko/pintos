@@ -15,6 +15,7 @@
 /* === ADD END p3q1 ===*/
 /* === ADD START p3q3 ===*/
 #include "vm/mmap.h"
+#include "vm/swap.h"
 /* === ADD END p3q3 ===*/
 
 
@@ -210,6 +211,9 @@ page_fault (struct intr_frame *f)
 }
 
 /* === ADD START p3q1 ===*/
+// NOTE: 1. load data
+//       2. install page
+//       3. update pme (to loaded)
 static bool handle_page_fault(struct pme* fault_pme, void* fault_addr, struct intr_frame *f ) {
   /* === ADD START p3q2 ===*/
 
@@ -264,10 +268,16 @@ static bool handle_page_fault(struct pme* fault_pme, void* fault_addr, struct in
       fault_pme-> load_status = true;
       break;
     // ========================================================= //
-//    case PME_SWAP:
-//      // todo swap, swap in
-//      // change load status // this means our swap algorithm has worked.
-//      break;
+    case PME_SWAP:
+      // swap in
+      swap_in( fault_pme->pme_swap_index, kpage );
+      if ( ! install_page (fault_pme->vaddr, kpage, fault_pme->write_permission) ) {
+        success = false; break;
+      }
+      // load success
+      fault_pme-> load_status = true;
+      break;
+    // ========================================================= //
     default: success = false;
   }
 

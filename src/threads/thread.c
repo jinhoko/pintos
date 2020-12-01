@@ -20,6 +20,11 @@
 #include "threads/fixed_point_arithmetic.h"
 /* === ADD END jihun ===*/
 
+/* === ADD START p3q4 ===*/
+#include "vm/frame.h"
+#include "vm/swap.h"
+/* === ADD END p3q4===*/
+
 #ifdef USERPROG
 #include "userprog/process.h"
 #endif
@@ -116,6 +121,11 @@ static bool is_thread (struct thread *) UNUSED;
   /* === ADD START jinho q1 ===*/
   list_init( &sleep_list );
   /* === ADD END jinho q1 ===*/
+
+  /* === ADD START p3q4 ===*/
+  frame_table_init();
+  swap_table_init(); // todo param size?
+  /* === ADD END p3q4 ===*/
 
   /* Set up a thread structure for the running thread. */
   initial_thread = running_thread ();

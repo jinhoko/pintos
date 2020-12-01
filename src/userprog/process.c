@@ -22,10 +22,14 @@
 /* === ADD END jinho p2q2 ===*/
 /* === ADD START p3q1 ===*/
 #include "vm/page.h"
-/* === ADD END p3q3 ===*/
-/* === ADD START p3q1 ===*/
+/* === ADD END p3q1 ===*/
+/* === ADD START p3q3 ===*/
 #include "vm/mmap.h"
 /* === ADD END p3q3 ===*/
+/* === ADD START p3q4 ===*/
+#include "vm/frame.h"
+/* === ADD END p3q4 ===*/
+
 
 
 static thread_func start_process NO_RETURN;
@@ -714,7 +718,6 @@ setup_stack (void **esp)
 /* === DEL START p3q2 ===*/
 //static bool
 /* === DEL END p3q2 ===*/
-//* === ADD START p3q2 ===*/
 bool
 install_page (void *upage, void *kpage, bool writable)
 {
@@ -722,6 +725,22 @@ install_page (void *upage, void *kpage, bool writable)
 
   /* Verify that there's not already a page at that virtual
      address, then map our page there. */
-  return (pagedir_get_page (t->pagedir, upage) == NULL
+
+  /* === DEL START p3q4 ===*/
+//  return (pagedir_get_page (t->pagedir, upage) == NULL
+//          && pagedir_set_page (t->pagedir, upage, kpage, writable));
+  /* === DEL END p3q4 ===*/
+
+  /* === ADD START p3q4 ===*/
+  bool success = (pagedir_get_page (t->pagedir, upage) == NULL
           && pagedir_set_page (t->pagedir, upage, kpage, writable));
+
+  if( success ) {
+    struct frame* f = find_frame( kpage );
+    ASSERT( f != NULL );
+    install_vaddr_to_frame( f, upage );
+  }
+  return success;
+  /* === ADD END p3q4 ===*/
+
 }

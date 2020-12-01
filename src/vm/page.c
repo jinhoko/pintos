@@ -11,6 +11,11 @@
 #include "userprog/syscall.h"
 #include "filesys/file.h"
 #include "string.h"
+/* === ADD START p3q4 ===*/
+#include "vm/frame.h"
+#include "vm/swap.h"
+/* === ADD END p3q4 ===*/
+
 
 #include <stdio.h>
 
@@ -68,15 +73,22 @@ bool pmap_clear_pme (struct hash* pmap, struct pme* e, bool flush_on_dirty ){
   if( pme_lookup == NULL ){ return false; }
 
   struct thread* cur = thread_current();
-  void* kaddr = pagedir_get_page( cur->pagedir, e->vaddr );
 
-  // flush mechanism -> operated on munmap
-  if( pagedir_is_dirty( cur->pagedir, e->vaddr ) ) {
-    ASSERT( pmap_flush_pme_data( e, kaddr ) == true );
+  // if loaded, clear
+  if( pme_lookup -> load_status == true ) {
+    void *kaddr = pagedir_get_page(cur->pagedir, e->vaddr);
+    // flush mechanism -> operated on munmap
+    ASSERT(pmap_flush_pme_data(e, kaddr) == true);
+
+    palloc_free_page(kaddr);
+    pagedir_clear_page(cur->pagedir, e->vaddr);
   }
-
-  palloc_free_page( kaddr );
-  pagedir_clear_page( cur->pagedir, e->vaddr );
+  // if stored in swap storage, clear
+  if( pme_lookup->type == PME_SWAP
+      && pme_lookup->load_status == false)
+  {
+    swap_clear( pme_lookup->pme_swap_index );
+  }
 
   // hash delete
   hash_delete( pmap, &(e->elem) );
@@ -87,7 +99,16 @@ bool pmap_clear_pme (struct hash* pmap, struct pme* e, bool flush_on_dirty ){
   return true;
 }
 
-bool pmap_flush_pme_data (struct pme* e, const void* buffer) {
+bool pmap_flush_pme_data ( struct pme* e, const void* kaddr ) {
+  bool success = true;
+  struct thread* cur = thread_current();
+  if( pagedir_is_dirty( cur->pagedir, e->vaddr ) ) {
+    success = pmap_writeback_pme_data (e, kaddr);
+  }
+  return success;
+}
+
+bool pmap_writeback_pme_data (struct pme* e, const void* buffer) {
 
   // Flush if mmap corrupted
   if( e->type == PME_MMAP ){
@@ -99,7 +120,6 @@ bool pmap_flush_pme_data (struct pme* e, const void* buffer) {
     {
       return false;
     }
-
   }
   return true;
 }

@@ -34,7 +34,8 @@ struct pme {
   size_t       pme_mmap_read_bytes;
   size_t       pme_mmap_zero_bytes;
 
-  // PME_SWAP related todo
+  // PME_SWAP related
+  size_t       pme_swap_index;
 
   struct hash_elem elem;          // used to insert to struct thread.pmap
   /* === ADD START p3q3 ===*/
@@ -52,7 +53,8 @@ struct pme* pmap_get_pme (struct hash*, void* vaddr);
 
 bool pmap_set_pme (struct hash*, struct pme*);
 bool pmap_clear_pme (struct hash*, struct pme*, bool);
-bool pmap_flush_pme_data (struct pme*, const void*);
+bool pmap_flush_pme_data ( struct pme*, const void* );
+bool pmap_writeback_pme_data (struct pme*, const void* )
 
 static struct pme* lookup_pme (struct hash*, void*);
 
