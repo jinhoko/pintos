@@ -180,23 +180,4 @@ bool unload_mmap( struct mmap_meta* mmeta ) {
   return success;
 }
 
-bool flush_mmap( struct mmap_meta* mmeta ) {
-
-  // clear pme
-  // NOTE : In each pmap_clear_pme, we will free pme.
-  //        Thus we need to retrieve crucial values before
-  //        making changes to the list every iteration.
-  struct list_elem *e, *e1;
-  struct list_elem *eb = list_begin( &mmeta->pme_list );
-  struct list_elem *ee = list_end( &mmeta->pme_list );
-
-  for (e = eb; e != ee; e = e1) {
-    struct pme* pme = list_entry (e, struct pme, mmap_elem);
-    e1 = list_next (e);
-    // if one of the clear action fails, the unload is marked failure
-    success = success && pmap_clear_pme( &(cur->pmap), pme, true );
-  }
-
-}
-
 /* === ADD END p3q3 ===*/

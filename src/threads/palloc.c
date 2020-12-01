@@ -200,7 +200,7 @@ palloc_free_multiple (void *pages, size_t page_cnt)
   bitmap_set_multiple (pool->used_map, page_idx, page_cnt, false);
 
   /* === ADD START p3q4 ===*/
-  if ( flags & PAL_USER && page_cnt == 1) {
+  if ( page_from_pool (&user_pool, pages) && page_cnt == 1) {
     struct frame* cur_frame = find_frame( pages );
     ASSERT( cur_frame != NULL );
     if( is_victim(cur_frame) ) {

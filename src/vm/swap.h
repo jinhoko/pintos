@@ -4,9 +4,11 @@
 
 #include <bitmap.h>
 #include "threads/synch.h"
+#include "devices/block.h"
 
 #define BLOCKS_IN_PAGE 8
 #define BLOCKS_IN_PAGE_BITS 3
+#define SECTORS_IN_PAGE (PGSIZE / BLOCK_SECTOR_SIZE)
 
 struct swap_table {
     struct bitmap*  used_map;
@@ -17,10 +19,10 @@ struct swap_table {
 typedef size_t st_idx;         // index type for swap table
 typedef size_t bl_idx;         // index type for block operation querying
 
-void swap_table_init ( int );
+void swap_table_init ( );
 void swap_in ( st_idx, void* );
 void swap_clear ( st_idx );
-swap_table_idx swap_out ( const void* );
+st_idx swap_out ( const void* );
 
 void execute_swap( st_idx, void*, bool );
 

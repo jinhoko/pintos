@@ -1,14 +1,21 @@
 /* === ADD START p3q4 ===*/
 #include "swap.h"
 #include "devices/block.h"
+#include "threads/vaddr.h"
 
 
 static struct swap_table swap_table;
 
-void swap_table_init ( int swap_table_size ) {
+void swap_table_init ( ) {
+
+  // check if block driver works
+  struct block* block = block_get_role (BLOCK_SWAP);
+  ASSERT( block != NULL );
+
+  swap_table.size = block_size (block) / SECTORS_IN_PAGE ;
   lock_init( &(swap_table.lock) );
-  swap_table.used_map = bitmap_create ( swap_table_size );
-  swap_table.size = swap_table_size;
+  swap_table.used_map = bitmap_create ( swap_table.size );
+
 }
 
 void swap_in ( st_idx idx, void* kaddr ) {
@@ -51,10 +58,10 @@ st_idx swap_out ( const void* kaddr ) {
 //            if not, then this is write operation
 void execute_swap( st_idx idx, void* buffer, bool is_read ) {
 
-  struct block *block;
+  struct block* block;
   block = block_get_role (BLOCK_SWAP);
 
-  bl_idx block_start_idx = get_block_idx( st_idx );
+  bl_idx block_start_idx = get_block_idx( idx );
 
   bl_idx i;
   for( i = 0; i < BLOCKS_IN_PAGE ; i++ ) {
@@ -65,7 +72,6 @@ void execute_swap( st_idx idx, void* buffer, bool is_read ) {
       block_write (block, block_start_idx + i, buffer + BLOCK_SECTOR_SIZE * i);
     }
   }
-  return;
 }
 
 bl_idx get_block_idx( st_idx idx ) {
@@ -79,4 +85,3 @@ bool is_valid_idx( st_idx idx ){
 
 
 /* === ADD END p3q4 ===*/
-

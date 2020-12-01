@@ -21,8 +21,8 @@ struct frame {
 void frame_table_init();
 
 struct frame* create_frame ( void* , struct thread* );
-bool install_vaddr_to_frame ( void* );
-void find_frame( void* );
+void install_vaddr_to_frame ( struct frame*, void* );
+struct frame* find_frame( void* );
 void insert_frame( struct frame* );
 void remove_frame( struct frame* );
 

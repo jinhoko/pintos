@@ -54,7 +54,7 @@ struct pme* pmap_get_pme (struct hash*, void* vaddr);
 bool pmap_set_pme (struct hash*, struct pme*);
 bool pmap_clear_pme (struct hash*, struct pme*, bool);
 bool pmap_flush_pme_data ( struct pme*, const void* );
-bool pmap_writeback_pme_data (struct pme*, const void* )
+bool pmap_writeback_pme_data (struct pme*, const void* );
 
 static struct pme* lookup_pme (struct hash*, void*);
 

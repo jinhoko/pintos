@@ -1,7 +1,7 @@
 /* === ADD START p3q4 ===*/
 
 #include "frame.h"
-#include "vaddr.h"
+#include "threads/vaddr.h"
 #include <list.h>
 #include "vm/page.h"
 #include "threads/synch.h"
@@ -15,10 +15,12 @@ static struct list frame_table;
 static struct frame* victim;
 static struct lock victim_lock;
 
+static struct list_elem* _circular_next( struct list_elem* );
+
 void frame_table_init() {
   list_init ( &frame_table );
   victim = NULL;
-  lock_init( &victim_lock );
+  //lock_init( &victim_lock );
   return;
 }
 
@@ -40,7 +42,7 @@ void install_vaddr_to_frame ( struct frame* f, void* vaddr ) {
 
 struct frame* find_frame( void* kaddr ) {
 
-  lock_acquire( &victim_lock );
+  //lock_acquire( &victim_lock );
 
   ASSERT (pg_ofs (kaddr) == 0);
 
@@ -54,22 +56,22 @@ struct frame* find_frame( void* kaddr ) {
           return f;
         }
     }
-  lock_release( &victim_lock );
+//  lock_release( &victim_lock );
   return NULL; // not found
 }
 
 void insert_frame( struct frame* f ){
-  lock_acquire( &victim_lock );
+//  lock_acquire( &victim_lock );
   list_push_back( &frame_table, &(f->elem) );
-  lock_release( &victim_lock );
+//  lock_release( &victim_lock );
 
 }
 
 void remove_frame( struct frame* f ) {
-  lock_acquire( &victim_lock );
+//  lock_acquire( &victim_lock );
   list_remove( &(f->elem) );
   free( f );
-  lock_release( &victim_lock );
+//  lock_release( &victim_lock );
 }
 
 /* Page Replacement Related */
@@ -88,20 +90,20 @@ bool evict_page( struct frame* f ) {
   ASSERT( pme->load_status == true );
 
   switch( pme->type ) {
-    case MMAP: {
-      void* kaddr = pagedir_get_page( f->thr->pagedir, e->vaddr );
+    case PME_MMAP: {
+      void* kaddr = pagedir_get_page( f->thr->pagedir, pme->vaddr );
       pmap_flush_pme_data( pme, kaddr );
       break;
     }
     case PME_NULL :
     case PME_EXEC :  {
-      void* kaddr = pagedir_get_page( f->thr->pagedir, e->vaddr );
+      void* kaddr = pagedir_get_page( f->thr->pagedir, pme->vaddr );
       pme->type = PME_SWAP;
       pme->pme_swap_index = swap_out( kaddr );
       break;
     }
     case PME_SWAP : {
-      void* kaddr = pagedir_get_page( f->thr->pagedir, e->vaddr );
+      void* kaddr = pagedir_get_page( f->thr->pagedir, pme->vaddr );
       pme->pme_swap_index = swap_out( kaddr );
       break;
     }
@@ -117,12 +119,12 @@ bool evict_page( struct frame* f ) {
 //        the result of this function ONLY
 //        depends on VICTIM.
 struct frame* get_current_victim() {
-  lock_acquire( &victim_lock );
+//  lock_acquire( &victim_lock );
   if( victim == NULL ) {
     set_next_victim();
   }
   struct frame* f = victim;
-  lock_release( &victim_lock );
+//  lock_release( &victim_lock );
 
   // NOTE : if victim cannot be selected,
   //        that would be a very serious problem
@@ -136,7 +138,7 @@ struct frame* get_current_victim() {
 //        we do not set as victim if vaddr is not installed.
 void set_next_victim() {
 
-  lock_acquire( &victim_lock );
+//  lock_acquire( &victim_lock );
   ASSERT( list_size(&frame_table) > 0 )
 
   // NOTE : we maintain a circular search
@@ -145,7 +147,7 @@ void set_next_victim() {
   if( victim == NULL ) {
     e = list_begin(&frame_table); // e starts from begin
   } else {
-    e = victim->elem;             // e starts from current victim
+    e = &(victim->elem);             // e starts from current victim
   }
   for ( ;
         e != list_end (&frame_table);
@@ -163,11 +165,11 @@ void set_next_victim() {
       }
     }
   }
-  lock_release( &victim_lock );
+//  lock_release( &victim_lock );
 }
 
 // NOTE : an internal function for circular search
-static list_elem* _circular_next( list_elem* e ){
+static struct list_elem* _circular_next( struct list_elem* e ){
   if ( e == list_rbegin (&frame_table) ) {
     return list_begin( &frame_table );
   } else {

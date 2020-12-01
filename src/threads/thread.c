@@ -124,7 +124,6 @@ static bool is_thread (struct thread *) UNUSED;
 
   /* === ADD START p3q4 ===*/
   frame_table_init();
-  swap_table_init(); // todo param size?
   /* === ADD END p3q4 ===*/
 
   /* Set up a thread structure for the running thread. */

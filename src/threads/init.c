@@ -38,6 +38,13 @@
 #include "filesys/fsutil.h"
 #endif
 
+/* === ADD START p3q4 ===*/
+#ifdef VM
+#include "vm/swap.h"
+#endif
+/* === ADD END p3q4 ===*/
+
+
 /* Page directory with kernel mappings only. */
 uint32_t *init_page_dir;
 
@@ -126,6 +133,15 @@ main (void)
   locate_block_devices ();
   filesys_init (format_filesys);
 #endif
+
+/* === ADD START p3q4 ===*/
+#ifdef VM
+  locate_block_devices ();
+  swap_table_init();
+#endif
+/* === ADD END p3q4 ===*/
+
+
 
   printf ("Boot complete.\n");
   

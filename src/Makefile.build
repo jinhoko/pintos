@@ -69,6 +69,11 @@ vm_SRC  = vm/page.c         # supplementary page table
 # /* === ADD START p3q3 ===*/
 vm_SRC  += vm/mmap.c         # memory mapped file
 # /* === ADD END p3q3 ===*/
+# /* === ADD START p3q4 ===*/
+vm_SRC  += vm/frame.c	     # frame
+vm_SRC  += vm/swap.c         # swap partition
+# /* === ADD END p3q4 ===*/
+
 
 # Filesystem code.
 filesys_SRC  = filesys/filesys.c	# Filesystem core.
