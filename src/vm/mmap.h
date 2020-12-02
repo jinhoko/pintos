@@ -6,6 +6,7 @@
 #include <list.h>
 #include "filesys/file.h"
 #include "vm/page.h"
+#include "threads/synch.h"
 
 typedef int mapid_t;
 
@@ -26,6 +27,8 @@ bool load_mmap_on_demand(struct mmap_meta*, struct pme*, void*) ;
 struct mmap_meta* get_mmap_meta (mapid_t);
 struct mmap_meta* get_mmap_meta_from_file (struct file*);
 bool unload_mmap( struct mmap_meta* );
+
+struct lock mmap_lock;
 
 #endif //VM_MMAP_H
 

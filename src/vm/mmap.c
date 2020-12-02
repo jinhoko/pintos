@@ -11,6 +11,7 @@
 
 void mmap_meta_init(struct mmap_meta* mmeta) {
   list_init( &(mmeta->pme_list) );
+  lock_init( &mmap_lock );
   return;
 }
 
@@ -174,7 +175,7 @@ bool unload_mmap( struct mmap_meta* mmeta ) {
     struct pme* pme = list_entry (e, struct pme, mmap_elem);
     e1 = list_next (e);
     // if one of the clear action fails, the unload is marked failure
-    success = success && pmap_clear_pme( &(cur->pmap), pme, true );
+    success = success && pmap_clear_pme( &(cur->pmap), pme );
   }
 
   return success;

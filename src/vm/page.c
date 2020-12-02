@@ -14,6 +14,7 @@
 /* === ADD START p3q4 ===*/
 #include "vm/frame.h"
 #include "vm/swap.h"
+#include "vm/mmap.h"
 /* === ADD END p3q4 ===*/
 
 
@@ -67,10 +68,11 @@ bool pmap_set_pme (struct hash* pmap, struct pme* e) {
 }
 
 // NOTE : delete pme & free page from pmap
-bool pmap_clear_pme (struct hash* pmap, struct pme* e, bool flush_on_dirty ){
+bool pmap_clear_pme (struct hash* pmap, struct pme* e ){
   struct pme* pme_lookup = lookup_pme( pmap, e->vaddr );
   // the entry should exist before setting
   if( pme_lookup == NULL ){ return false; }
+
 
   struct thread* cur = thread_current();
 
@@ -120,6 +122,7 @@ bool pmap_writeback_pme_data (struct pme* e, const void* buffer) {
     {
       return false;
     }
+
   }
   return true;
 }
@@ -152,20 +155,24 @@ static void pmap_destroy_function (struct hash_elem *e, void *aux UNUSED){
 
   struct thread* cur = thread_current();
   void* kaddr;
-
-  // if loaded, free page
   if( pme_target -> load_status == true ) {
     kaddr = pagedir_get_page( cur->pagedir, pme_target->vaddr );
     // NOTE : flush if dirty
-    if( pagedir_is_dirty( cur->pagedir, pme_target->vaddr ) ) {
-      pmap_flush_pme_data( pme_target, kaddr );
-    }
+    ASSERT(pmap_flush_pme_data(pme_target, kaddr) == true);
+
     palloc_free_page( kaddr );
     pagedir_clear_page( cur->pagedir, pme_target->vaddr );
+  }
+  // if stored in swap storage, clear
+  if( pme_target->type == PME_SWAP
+      && pme_target->load_status == false)
+  {
+    swap_clear( pme_target->pme_swap_index );
   }
 
   // dealloc pme
   free( pme_target );
+
 }
 
 bool load_segment_on_demand ( struct pme* e, void* kpage ) {
