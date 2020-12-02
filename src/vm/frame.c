@@ -145,15 +145,16 @@ void set_next_victim() {
   struct list_elem *e;
   struct frame* ptr;
   if( victim == NULL ) {
-    e = list_begin(&frame_table); // e starts from begin
+    e = list_begin(&frame_table);    // e starts from begin
   } else {
-    e = &(victim->elem);             // e starts from current victim
+    e = _circular_next( &(victim->elem) );             // e starts from current victim's next
   }
   for ( ;
-        e != list_end (&frame_table);
-        e = _circular_next (e) )
+        //e != list_end (&frame_table);
+        ; e = _circular_next (e) )
   {
     ptr = list_entry(e, struct frame, elem);
+    ASSERT( ptr != NULL );
     if( ptr->vaddr_installed ) {
       if( pagedir_is_accessed( &(ptr->thr->pagedir), ptr->vaddr )) {
         // if accessed == 1, give second chance
@@ -187,13 +188,19 @@ void replace_victim ( struct frame* f ) {
 
   struct frame* f_new;
   int set_cnt = 0;
-
+  //printf("listsize %d\n", list_size(&frame_table) );
   do {
     f_new = get_current_victim();
     // something serious has happened!
     set_next_victim();
     set_cnt +=1;
-    if( set_cnt >= 10 ){ ASSERT( 0 ) ; } // toerase
+    if( set_cnt >= 10 ){
+      // there's something wrong with victim replacement
+      // e.g. if 1 entry remains, we will invalidate the
+      //      victim. the vicitm will be lazily reconfigured
+      //      when eviction is done.
+      victim = NULL ; return;
+    }
   } while ( f_new == f );
 
   // NOTE : the replaced victim should never be

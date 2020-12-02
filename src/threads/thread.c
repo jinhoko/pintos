@@ -597,6 +597,9 @@ void donate_priority (struct thread* cur, int priorityToDonate) {
   ASSERT( cur->lock_acquiring != NULL );
 
   while( cur->lock_acquiring != NULL ){
+    /* === ADD START p3q4 ===*/
+    if( cur->lock_acquiring->holder == NULL ){ break; }
+    /* === ADD END p3q4 ===*/
     ASSERT( cur->lock_acquiring->holder != NULL );
     cur = cur->lock_acquiring->holder;
     // isPreemptRequired=false, isCalledByDonation=true
