@@ -11,7 +11,6 @@
 
 void mmap_meta_init(struct mmap_meta* mmeta) {
   list_init( &(mmeta->pme_list) );
-  lock_init( &mmap_lock );
   return;
 }
 
@@ -75,11 +74,11 @@ bool load_mmap( struct file* file, struct mmap_meta* mmeta, void* upage ) {
   size_t read_bytes = file_length(file);
   size_t zero_bytes = (ROUND_UP(read_bytes , PGSIZE) - read_bytes);
 
+  size_t ofs = 0;
   while (read_bytes > 0 || zero_bytes > 0)
   {
     size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
     size_t page_zero_bytes = PGSIZE - page_read_bytes;
-    size_t ofs = 0;
 
     struct pme* pme_to_alloc = create_pme();
     pme_to_alloc->vaddr = upage;

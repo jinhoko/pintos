@@ -28,8 +28,6 @@ struct mmap_meta* get_mmap_meta (mapid_t);
 struct mmap_meta* get_mmap_meta_from_file (struct file*);
 bool unload_mmap( struct mmap_meta* );
 
-struct lock mmap_lock;
-
 #endif //VM_MMAP_H
 
 /* === ADD END p3q3 ===*/

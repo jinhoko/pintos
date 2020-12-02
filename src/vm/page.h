@@ -6,10 +6,10 @@
 #include <hash.h>
 
 typedef enum _pme_type {
-    PME_EXEC = 0001,   // loading from executable
-    PME_MMAP = 0002,   // memory-mapped file
-    PME_SWAP = 0004,   // swap page
-    PME_NULL = 0000    // every other types, we basically don't care
+    PME_EXEC = 1,   // loading from executable
+    PME_MMAP = 2,   // memory-mapped file
+    PME_SWAP = 3,   // swap page
+    PME_NULL = 4    // every other types, we basically don't care
 } pme_type;
 
 // NOTE : pme stands for pagemap entry

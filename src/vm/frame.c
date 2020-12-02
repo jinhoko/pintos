@@ -107,6 +107,7 @@ bool evict_page( struct frame* f ) {
       pme->pme_swap_index = swap_out( kaddr );
       break;
     }
+    default: { ASSERT(0); }
   }
 
   pme->load_status = false;

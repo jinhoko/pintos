@@ -122,7 +122,6 @@ bool pmap_writeback_pme_data (struct pme* e, const void* buffer) {
     {
       return false;
     }
-
   }
   return true;
 }
@@ -158,7 +157,7 @@ static void pmap_destroy_function (struct hash_elem *e, void *aux UNUSED){
   if( pme_target -> load_status == true ) {
     kaddr = pagedir_get_page( cur->pagedir, pme_target->vaddr );
     // NOTE : flush if dirty
-    ASSERT(pmap_flush_pme_data(pme_target, kaddr) == true);
+    ASSERT( pmap_flush_pme_data(pme_target, kaddr) == true );
 
     palloc_free_page( kaddr );
     pagedir_clear_page( cur->pagedir, pme_target->vaddr );
