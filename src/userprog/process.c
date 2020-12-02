@@ -20,6 +20,17 @@
 /* === ADD START jinho p2q2 ===*/
 #include "userprog/syscall.h"
 /* === ADD END jinho p2q2 ===*/
+/* === ADD START p3q1 ===*/
+#include "vm/page.h"
+/* === ADD END p3q1 ===*/
+/* === ADD START p3q3 ===*/
+#include "vm/mmap.h"
+/* === ADD END p3q3 ===*/
+/* === ADD START p3q4 ===*/
+#include "vm/frame.h"
+/* === ADD END p3q4 ===*/
+
+
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
@@ -165,6 +176,16 @@ start_process (void *cmdline_)
     token_num++;
   }
 
+  /* === ADD START p3q1 ===*/
+  // NOTE : hash table must be set before load () is called
+  struct thread* cur = thread_current();
+  pmap_init ( &(cur->pmap) );
+  /* === ADD END p3q1 ===*/
+
+  /* === ADD START p3q3 ===*/
+  list_init( &(cur->mmap_list) );
+  /* === ADD END p3q3 ===*/
+
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
@@ -185,7 +206,6 @@ start_process (void *cmdline_)
 
 /* === ADD START jinho p2q2 ===*/
   /* If load failed, quit. */
-  struct thread* cur = thread_current();
   palloc_free_page (cmdline);
   palloc_free_page (cmdline_copy);
   if (!success){
@@ -272,6 +292,10 @@ process_exit (void)
   }
   /* === ADD END jinho p2q2 ===*/
 
+  /* === ADD START p3q1 ===*/
+  pmap_destroy(&(cur->pmap));
+  /* === ADD END p3q1 ===*/
+
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
   pd = cur->pagedir;
@@ -293,6 +317,7 @@ process_exit (void)
   // NOTE : allow modification of current file
   file_close(cur->current_file);
   /* === ADD END jihun p2q3 ===*/
+
 }
 
 /* Sets up the CPU for running user code in the current
@@ -519,7 +544,9 @@ load (const char *file_name, void (**eip) (void), void **esp)
 
 /* load() helpers. */
 
-static bool install_page (void *upage, void *kpage, bool writable);
+/* === DEL START p3q2 ===*/
+//static bool install_page (void *upage, void *kpage, bool writable);
+/* === DEL END p3q2 ===*/
 
 /* Checks whether PHDR describes a valid, loadable segment in
    FILE and returns true if so, false otherwise. */
@@ -593,30 +620,51 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
     size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
     size_t page_zero_bytes = PGSIZE - page_read_bytes;
 
-    /* Get a page of memory. */
-    uint8_t *kpage = palloc_get_page (PAL_USER);
-    if (kpage == NULL)
-      return false;
+    /* === ADD START p3q1 ===*/
+    struct pme* pme_to_alloc = create_pme();
+    pme_to_alloc->vaddr = upage;
+    pme_to_alloc->load_status = false;
+    pme_to_alloc->write_permission = writable ? true : false;
+    pme_to_alloc->type = PME_EXEC;
+    pme_to_alloc->pme_exec_file = file;
+    pme_to_alloc->pme_exec_read_offset = ofs;
+    pme_to_alloc->pme_exec_read_bytes = page_read_bytes;
+    pme_to_alloc->pme_exec_zero_bytes = page_zero_bytes;
 
-    /* Load this page. */
-    if (file_read (file, kpage, page_read_bytes) != (int) page_read_bytes)
-    {
-      palloc_free_page (kpage);
+    if( pmap_set_pme( &(thread_current()->pmap), pme_to_alloc ) == false ){
       return false;
     }
-    memset (kpage + page_read_bytes, 0, page_zero_bytes);
+    /* === ADD END p3q1 ===*/
 
-    /* Add the page to the process's address space. */
-    if (!install_page (upage, kpage, writable))
-    {
-      palloc_free_page (kpage);
-      return false;
-    }
+    /* === DEL START p3q1 ===*/
+//    /* Get a page of memory. */
+//    uint8_t *kpage = palloc_get_page (PAL_USER);
+//    if (kpage == NULL)
+//      return false;
+//
+//    /* Load this page. */
+//    if (file_read (file, kpage, page_read_bytes) != (int) page_read_bytes)
+//    {
+//      palloc_free_page (kpage);
+//      return false;
+//    }
+//    memset (kpage + page_read_bytes, 0, page_zero_bytes);
+//
+//    /* Add the page to the process's address space. */
+//    if (!install_page (upage, kpage, writable))
+//    {
+//      palloc_free_page (kpage);
+//      return false;
+//    }
+    /* === DEL END p3q1 ===*/
 
     /* Advance. */
     read_bytes -= page_read_bytes;
     zero_bytes -= page_zero_bytes;
     upage += PGSIZE;
+    /* === ADD START p3q1 ===*/
+    ofs += page_read_bytes;
+    /* === ADD END p3q1 ===*/
   }
   return true;
 }
@@ -629,6 +677,7 @@ setup_stack (void **esp)
   uint8_t *kpage;
   bool success = false;
 
+
   kpage = palloc_get_page (PAL_USER | PAL_ZERO);
   if (kpage != NULL)
   {
@@ -638,6 +687,22 @@ setup_stack (void **esp)
     else
       palloc_free_page (kpage);
   }
+  /* === ADD START p3q1 ===*/
+  if( success ) {
+    struct pme* pme_to_alloc = create_pme();
+    void* stack_addr = ((uint8_t *) PHYS_BASE) - PGSIZE;
+    ASSERT( pg_ofs(stack_addr) == 0 );
+    pme_to_alloc->vaddr = stack_addr;
+    pme_to_alloc->load_status = true;
+    pme_to_alloc->write_permission = true;
+    pme_to_alloc->type = PME_NULL;
+
+    if( pmap_set_pme( &(thread_current()->pmap), pme_to_alloc ) == false ){
+      success = false;
+    }
+  }
+  /* === ADD END p3q1 ===*/
+
   return success;
 }
 
@@ -650,13 +715,32 @@ setup_stack (void **esp)
    with palloc_get_page().
    Returns true on success, false if UPAGE is already mapped or
    if memory allocation fails. */
-static bool
+/* === DEL START p3q2 ===*/
+//static bool
+/* === DEL END p3q2 ===*/
+bool
 install_page (void *upage, void *kpage, bool writable)
 {
   struct thread *t = thread_current ();
 
   /* Verify that there's not already a page at that virtual
      address, then map our page there. */
-  return (pagedir_get_page (t->pagedir, upage) == NULL
+
+  /* === DEL START p3q4 ===*/
+//  return (pagedir_get_page (t->pagedir, upage) == NULL
+//          && pagedir_set_page (t->pagedir, upage, kpage, writable));
+  /* === DEL END p3q4 ===*/
+
+  /* === ADD START p3q4 ===*/
+  bool success = (pagedir_get_page (t->pagedir, upage) == NULL
           && pagedir_set_page (t->pagedir, upage, kpage, writable));
+
+  if( success ) {
+    struct frame* f = find_frame( kpage );
+    ASSERT( f != NULL );
+    install_vaddr_to_frame( f, upage );
+  }
+  return success;
+  /* === ADD END p3q4 ===*/
+
 }

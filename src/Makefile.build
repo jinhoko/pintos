@@ -63,6 +63,17 @@ userprog_SRC += userprog/tss.c		# TSS management.
 
 # No virtual memory code yet.
 #vm_SRC = vm/file.c			# Some file.
+# /* === ADD START p3q1 ===*/
+vm_SRC  = vm/page.c         # supplementary page table
+# /* === ADD END p3q1 ===*/
+# /* === ADD START p3q3 ===*/
+vm_SRC  += vm/mmap.c         # memory mapped file
+# /* === ADD END p3q3 ===*/
+# /* === ADD START p3q4 ===*/
+vm_SRC  += vm/frame.c	     # frame
+vm_SRC  += vm/swap.c         # swap partition
+# /* === ADD END p3q4 ===*/
+
 
 # Filesystem code.
 filesys_SRC  = filesys/filesys.c	# Filesystem core.

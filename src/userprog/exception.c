@@ -7,12 +7,30 @@
 /* === ADD START jinho p2q2 ===*/
 #include "userprog/syscall.h"
 /* === ADD END jinho p2q2 ===*/
+/* === ADD START p3q1 ===*/
+#include "userprog/process.h"
+#include "threads/vaddr.h"
+#include "vm/page.h"
+#include "threads/palloc.h"
+/* === ADD END p3q1 ===*/
+/* === ADD START p3q3 ===*/
+#include "vm/mmap.h"
+#include "vm/swap.h"
+/* === ADD END p3q3 ===*/
+
 
 /* Number of page faults processed. */
 static long long page_fault_cnt;
 
 static void kill (struct intr_frame *);
 static void page_fault (struct intr_frame *);
+
+/* === ADD START p3q1 ===*/
+static bool handle_page_fault (struct pme*, void*, struct intr_frame*);
+/* === ADD END p3q1 ===*/
+/* === ADD START p3q2 ===*/
+static int grow_stack(void*);
+/* === ADD END p3q2 ===*/
 
 /* Registers handlers for interrupts that can be caused by user
    programs.
@@ -151,21 +169,151 @@ page_fault (struct intr_frame *f)
   write = (f->error_code & PF_W) != 0;
   user = (f->error_code & PF_U) != 0;
 
-  /* === ADD START jinho p2q2 ===*/
-  // NOTE : exit on page faults
-  exit(-1);
-  /* === ADD END jinho p2q2 ===*/
+  /* === ADD START p3q1 ===*/
+  // NOTE : exit(-1) on non-handlable, critical case
+  if ( !not_present
+    || fault_addr == NULL
+    || !is_user_vaddr(fault_addr) )
+  {
+    exit(-1);
+  }
 
+  struct pme* fault_pme = pmap_get_pme(
+          &(thread_current()->pmap) , fault_addr );
 
+  // NOTE : it is admissible for page fault handler to
+  //        receive pme => NULL
+  if( !handle_page_fault( fault_pme, fault_addr, f ) ){
+    exit(-1);
+  }
 
-  /* To implement virtual memory, delete the rest of the function
-     body, and replace it with code that brings in the page to
-     which fault_addr refers. */
-  printf ("Page fault at %p: %s error %s page in %s context.\n",
-          fault_addr,
-          not_present ? "not present" : "rights violation",
-          write ? "writing" : "reading",
-          user ? "user" : "kernel");
-  kill (f);
+  // NOTE : If this point reached, page fault
+  //        is successfully handled.
+
+  /* === ADD END p3q1 ===*/
+
+  /* === DEL START p3q1 ===*/
+//  /* === ADD START jinho p2q2 ===*/
+//  // NOTE : exit on page faults
+//  exit(-1);
+//  /* === ADD END jinho p2q2 ===*/
+//
+//  /* To implement virtual memory, delete the rest of the function
+//     body, and replace it with code that brings in the page to
+//     which fault_addr refers. */
+//  printf ("Page fault at %p: %s error %s page in %s context.\n",
+//          fault_addr,
+//          not_present ? "not present" : "rights violation",
+//          write ? "writing" : "reading",
+//          user ? "user" : "kernel");
+//  kill (f);
+  /* === DEL END p3q1 === */
 }
 
+/* === ADD START p3q1 ===*/
+// NOTE: 1. load data
+//       2. install page
+//       3. update pme (to loaded)
+static bool handle_page_fault(struct pme* fault_pme, void* fault_addr, struct intr_frame *f ) {
+  /* === ADD START p3q2 ===*/
+
+  // NOTE : this invariant should be satisfied only when
+  //        esp is referring to lower level of stack.
+  if( fault_pme == NULL ) {
+    // NOTE : We reference from IA32 architecture, which lets push instruction
+    //        to push at most 32 bytes per a single instruction. Thus, if a
+    //        memory reference which refers to region lower than esp-32,
+    //        we consider it a segmentation fault (ref : Pintos manual)
+    if( (f->esp - 32 <= fault_addr) && (0xBF800000 < fault_addr) ) {
+      bool stack_grow_result = grow_stack(fault_addr);
+      return stack_grow_result;
+    }
+    else { return false; }
+  }
+  /* === ADD END p3q2 ===*/
+
+  ASSERT( fault_pme != NULL );
+  uint8_t *kpage = palloc_get_page (PAL_USER);
+  if( kpage == NULL ) { return false; }
+  // NOTE : from now on, do not forcibly return,
+  //        but just mark success = false
+  bool success = true;
+
+  struct mmap_meta* mmeta;
+  switch ( fault_pme->type ) {
+    // ========================================================= //
+    case PME_NULL: break;
+    // ========================================================= //
+    case PME_EXEC:
+      if( ! load_segment_on_demand( fault_pme, kpage) ) {
+        success = false; break;
+      }
+      if ( ! install_page (fault_pme->vaddr, kpage, fault_pme->write_permission) ) {
+        success = false; break;
+      }
+      // load success
+      fault_pme-> load_status = true;
+      break;
+    // ========================================================= //
+    case PME_MMAP:
+      mmeta = get_mmap_meta_from_file ( fault_pme->pme_mmap_file );
+      ASSERT( mmeta != NULL );
+      if( ! load_mmap_on_demand( mmeta, fault_pme, kpage) ) {
+        success = false; break;
+      }
+      if ( ! install_page (fault_pme->vaddr, kpage, fault_pme->write_permission) ) {
+        success = false; break;
+      }
+      // load success
+      fault_pme-> load_status = true;
+      break;
+    // ========================================================= //
+    case PME_SWAP:
+      // swap in
+      swap_in( fault_pme->pme_swap_index, kpage );
+      if ( ! install_page (fault_pme->vaddr, kpage, fault_pme->write_permission) ) {
+        success = false; break;
+      }
+      // load success
+      fault_pme-> load_status = true;
+      break;
+    // ========================================================= //
+    default: success = false;
+  }
+
+  // if handle failed, free page
+  if (!success) {
+    palloc_free_page( kpage );
+  }
+  return success;
+}
+/* === ADD END p3q1 ===*/
+
+/* === ADD START p3q2 ===*/
+static int grow_stack(void *fault_addr)
+{
+  uint8_t *kpage = palloc_get_page (PAL_USER | PAL_ZERO);
+  uint8_t *upage = pg_round_down(fault_addr);
+
+  bool success = false;
+
+  if (kpage == NULL)
+    return false;
+
+  if( ! install_page (upage, kpage, true) )
+  {
+    palloc_free_page (kpage);
+    return false;
+  }
+
+  struct pme* pme_to_alloc = create_pme();
+  pme_to_alloc->vaddr = upage;
+  pme_to_alloc->load_status = true;
+  pme_to_alloc->write_permission = true;
+  pme_to_alloc->type = PME_NULL;
+
+  pmap_set_pme( &(thread_current()->pmap), pme_to_alloc );
+
+  return true;
+}
+/* === ADD END p3q2 ===*/

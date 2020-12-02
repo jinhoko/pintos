@@ -241,6 +241,11 @@ lock_acquire (struct lock *lock)
   if (!thread_mlfqs) {
     /* === ADD END jihun q3 ===*/
 
+/* === ADD START p3q4 ===*/
+#ifndef VM
+// TODO for now, we disable priority donation for VM project.
+//      but the problem should further be resolved.
+/* === ADD END p3q4 ===*/
     if (lock->holder != NULL) {  // donation needed
 
       cur->lock_acquiring = lock;
@@ -252,6 +257,9 @@ lock_acquire (struct lock *lock)
 
       donate_priority(cur, cur->priority);
     }
+/* === ADD START p3q4 ===*/
+#endif
+/* === ADD END p3q4 ===*/
 
     /* === ADD START jihun q3 ===*/
   }
